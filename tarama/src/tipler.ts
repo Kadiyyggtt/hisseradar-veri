@@ -86,6 +86,17 @@ export interface Portfoy {
   gecmis: PortfoyKapanan[];
 }
 
+/** Grafik verisi: sembol başına son 60 günlük kapanış ve hacim; uygulama çizgi grafiği buradan çizer. */
+export interface GrafikSerisi {
+  /** İlk mumun unix saniyesi; sonrakiler iş günü sırasıyla. */
+  t0: number;
+  /** Son mumun unix saniyesi. */
+  t1: number;
+  k: number[];
+  h: number[];
+}
+export type GrafikVerisi = { surum: 1; uretildi: number; seriler: Record<string, GrafikSerisi> };
+
 export interface TaramaSonucu {
   surum: 1;
   uretildi: number; // unix saniye

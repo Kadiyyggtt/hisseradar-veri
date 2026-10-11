@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Eslesme, Portfoy, TaramaSonucu } from './tipler';
+import type { Eslesme, GrafikVerisi, Portfoy, TaramaSonucu } from './tipler';
 import { portfoyuIlerlet } from './portfoy';
 import { ortamiOlc } from './ortam';
 import { TARAYICILAR } from './stratejiler';
@@ -39,6 +39,7 @@ async function main() {
   const sayac: Record<string, number> = {};
   /** Son kapanışlar: portföy değerlemesi için, eşleşme olmasa da. */
   const fiyatlar = new Map<string, number>();
+  const grafik: GrafikVerisi = { surum: 1, uretildi: Math.floor(Date.now() / 1000), seriler: {} };
   let bitti = 0;
 
   // Basit eşzamanlılık: N işçi, kuyruktan çeker.
@@ -49,6 +50,15 @@ async function main() {
       try {
         const seriler = await serileriGetir(is.sembol, is.piyasa);
         fiyatlar.set(`${is.piyasa}:${is.sembol}`, seriler['1d'][seriler['1d'].length - 1].k);
+        {
+          const g = seriler['1d'].slice(-60);
+          grafik.seriler[`${is.piyasa}:${is.sembol}`] = {
+            t0: g[0].t,
+            t1: g[g.length - 1].t,
+            k: g.map((m) => Math.round(m.k * 100) / 100),
+            h: g.map((m) => Math.round(m.h)),
+          };
+        }
         for (const t of TARAYICILAR) {
           if (t.sart && !t.sart(ortam, is.piyasa)) continue;
           let e: Eslesme | null = null;
@@ -109,6 +119,7 @@ async function main() {
   }
   writeFileSync(oncekiYol, JSON.stringify(sonuc));
   writeFileSync(join(CIKTI, 'yeni.json'), JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni }));
+  writeFileSync(join(CIKTI, 'grafik.json'), JSON.stringify(grafik));
   writeFileSync(join(CIKTI, 'ozet.json'), JSON.stringify({ uretildi: sonuc.uretildi, ortam, sayac, taranan: sonuc.taranan }));
   console.log(`Bitti: ${eslesmeler.length} eşleşme, ${yeni.length} yeni, ${hatali.length} hatalı sembol.`);
   console.table(sayac);
