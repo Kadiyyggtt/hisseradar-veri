@@ -69,7 +69,7 @@ export const ucgenler: Tarayici = {
     const guven = 50 + (yon !== 'izle' ? (kat >= 1.5 ? 30 : 10) : 0);
     return eslesme(s, 'ucgenler', '1d', yon, guven,
       [`${tur === 'simetrik' ? 'Simetrik' : tur === 'yukselen' ? 'Yükselen' : 'Alçalan'} üçgen: üst çizgi ${f2(ustS)}, alt çizgi ${f2(altS)}, daralıyor.`,
-       yukariKirdi ? `Üst çizgi kapanışla kırıldı${kat >= 1.5 ? ', hacim ortalamanın ' + kat.toFixed(1).replace('.', ',') + ' katı.' : '; hacim zayıf, sahte olabilir.'}` : asagiKirdi ? 'Alt çizgi aşağı kırıldı.' : 'Kırılım bekleniyor; hacme bak.',
+       yukariKirdi ? `Üst çizgi kapanışla kırıldı${kat >= 1.5 ? ', hacim ortalamanın ' + kat.toFixed(1).replace('.', ',') + ' katı.' : '; hacim zayıf, sahte olabilir.'}` : asagiKirdi ? 'Alt çizgi aşağı kırıldı.' : 'Kırılım bekleniyor, hacme bakılmalı.',
        `Hedef: üçgen boyu (${f2(k.genislik)}) kırılım noktasına eklenir.`],
       { 'Üst çizgi': ustS, 'Alt çizgi': altS, 'Hedef (yukarı)': ustS + k.genislik, 'Hedef (aşağı)': altS - k.genislik });
   },
@@ -153,7 +153,7 @@ export const bayrak: Tarayici = {
         [`Direk: ${bezBas - dipI} mumda %${(direk * 100).toFixed(0).replace('.', ',')} yükseliş (${f2(m[dipI].d)} → ${f2(m[bezBas].k)}).`,
          `Bez: ${bez} mum, derinlik %${(bezDerinlik * 100).toFixed(0).replace('.', ',')}, hafif aşağı/yatay.`,
          kirildi ? `Bezin üstü (${f2(bezUst)}) kapanışla aşıldı; hacim ${kat.toFixed(1).replace('.', ',')}x.` : `Kırılım seviyesi ${f2(bezUst)} bekleniyor.`,
-         'Klasik hedef direk boyu; 1-2-3 bağlamına bakmadan alma.'],
+         'Klasik hedef direk boyu. 1-2-3 bağlamına bakmadan alınmaz.'],
         { 'Bez üstü': bezUst, 'Hedef (direk boyu)': bezUst + (m[bezBas].k - m[dipI].d) });
     }
     return null;
@@ -229,7 +229,7 @@ export const besDalga: Tarayici = {
     return eslesme(s, 'bes-dalga', '1d', 'izle', 55,
       [`${pozitif ? 'Pozitif' : 'Negatif'} sayım: 1=${f2(dalga[0].fiyat)} (en büyük dalga, %${(enBuyuk * 100).toFixed(0).replace('.', ',')}), 2=${f2(dalga[1].fiyat)}, 3=${f2(dalga[2].fiyat)}, 4=${f2(dalga[3].fiyat)}, 5=${f2(bes.fiyat)}.`,
        `5 numaralı bölge oluştu: ${pozitif ? 'al' : 'sat'} sinyali aranacak yer${w ? ' (W/ters W ihtimali, marj beklentisi yüksek)' : ''}.`,
-       'Heikin teyidiyle giriş; sonra hemen ters sayım yap.'],
+       'Heikin teyidiyle giriş yapılır, sonra hemen ters sayım yapılır.'],
       { '5 bölgesi': bes.fiyat, '4': dalga[3].fiyat });
   },
 };

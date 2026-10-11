@@ -57,7 +57,7 @@ export const sma30w: Tarayici = {
     if (g < 0) return null;
     const i = m.length - 1 - g;
     return eslesme(s, 'sma30w', '1w', 'al', 100,
-      [`Haftalık kapanış 30 haftalık ortalamayı (${f2(o[i])}) ${g === 0 ? 'bu hafta' : 'geçen hafta'} yukarı kesti.`, 'Kâr hedefi %10-15, stop 30 haftalık altı.'],
+      [`Haftalık kapanış 30 haftalık ortalamayı (${f2(o[i])}) ${g === 0 ? 'bu hafta' : 'geçen hafta'} yukarı kesti.`, 'Kâr hedefi %10-15, stop 30 haftalık ortalamanın altı.'],
       { 'Ort 30h': o[i], 'Hedef %10': m[i].k * 1.1, 'Hedef %15': m[i].k * 1.15 });
   },
 };
@@ -156,7 +156,7 @@ export const aylik510: Tarayici = {
     const oncekiEnYuksek = Math.max(...m.slice(i - 3, i).map((x) => x.h));
     if (m[i].h <= oncekiEnYuksek) return null;
     return eslesme(s, 'aylik-5-10', '1mo', 'izle', 100,
-      ['Aylık kapanış 10 aylık ortalamayı geçti.', 'Bu ayın hacmi önceki 3 ayın en yükseğini aştı.', 'Tek başına sinyal değil; takip listesine.'],
+      ['Aylık kapanış 10 aylık ortalamayı geçti.', 'Bu ayın hacmi önceki 3 ayın en yükseğini aştı.', 'Tek başına sinyal değil, takip listesine alınmalı.'],
       { 'EMA 10a': e10[i] });
   },
 };
@@ -190,7 +190,7 @@ export const fibMerdiveni: Tarayici = {
       [
         'EMA 55 > 89 > 144 > 233 sıralı dizilim bozulmamış.',
         `Fiyat ${i - daldi} gün önce 144-233 bölgesine indi.`,
-        gecisBugun ? 'Bugün en üstteki ortalama (EMA 55) yukarı geçildi: al sinyali.' : 'Henüz bölgede; EMA 55 boyun çizgisi, geçilince al.',
+        gecisBugun ? 'Bugün en üstteki ortalama (EMA 55) yukarı geçildi: al şartı sağlandı.' : 'Henüz bölgede. EMA 55 boyun çizgisidir, geçilince al şartı sağlanır.',
         ustte ? '' : '',
       ].filter(Boolean),
       { 'EMA 55 (boyun)': e55[i], 'EMA 144': e144[i], 'EMA 233': e233[i] });

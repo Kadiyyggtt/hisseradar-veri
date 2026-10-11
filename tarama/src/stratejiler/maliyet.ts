@@ -129,7 +129,7 @@ export const aySonu: Tarayici = {
         const pozitif = m[i].k > m[i].a;
         if (pozitif && yakin(m[i].k, maliyet, 6))
           return eslesme(s, 'ay-sonu-taramasi', '1mo', 'izle', 100,
-            [`Aylık 1-2-3: dip ${f2(p[j - 1].fiyat)}, tepe ${f2(p[j].fiyat)}, maliyet ${f2(maliyet)}.`, 'Son ay mumu pozitif kapattı ve maliyet bölgesinde.', 'Büyük plan: takip listesine.'],
+            [`Aylık 1-2-3: dip ${f2(p[j - 1].fiyat)}, tepe ${f2(p[j].fiyat)}, maliyet ${f2(maliyet)}.`, 'Son ay mumu pozitif kapattı ve maliyet bölgesinde.', 'Büyük plan: takip listesine alınmalı.'],
             { 'Aylık maliyet': maliyet });
         return null;
       }

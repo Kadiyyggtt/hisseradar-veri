@@ -61,7 +61,7 @@ function topukDonusuTara(s: Seriler, periyot: Periyot): ReturnType<Tarayici['tar
       `Topuk: ${f2(oncesi)} → ${f2(dip)} (%${(dusus * 100).toFixed(0).replace('.', ',')} sert düşüş), ardından ${kalkisSon - dipI} mumda %${(kalkis * 100).toFixed(0).replace('.', ',')} hacimli kalkış (${(kalkisHacim / ort20).toFixed(1).replace('.', ',')}x).`,
       `İşkence bölgesi: ${bolge.length} mum, hacim kalkışın %${((bolgeHacim / kalkisHacim) * 100).toFixed(0).replace('.', ',')}'i.`,
       `RSI çizgisi fiyat çizgisinden dik yukarı (${r[dipI].toFixed(0).replace('.', ',')} → ${r[i].toFixed(0).replace('.', ',')}): ${istah}.`,
-      al ? 'Uç yukarı kıvrıldı ve ölü bölge hacmi aşıldı: AL sinyali.' : kivrildi ? 'Uç kıvrıldı, hacim barı bekleniyor.' : 'Uç henüz kıvrılmadı.',
+      al ? 'Uç yukarı kıvrıldı ve ölü bölge hacmi aşıldı: al şartı sağlandı.' : kivrildi ? 'Uç kıvrıldı, hacim barı bekleniyor.' : 'Uç henüz kıvrılmadı.',
     ],
     { 'Topuk dibi': dip, 'Kalkış tepesi': tepe });
 }
