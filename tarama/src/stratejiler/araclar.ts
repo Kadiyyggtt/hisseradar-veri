@@ -57,13 +57,13 @@ export const rsiUyumsuzluk: Tarayici = {
       const [a, b] = dipler;
       if (b.fiyat < a.fiyat && r[b.i] > r[a.i] + 2)
         return eslesme(s, 'rsi-uyumsuzluk', '1d', 'al', 100,
-          [`Fiyat daha düşük dip yaptı (${f2(a.fiyat)} → ${f2(b.fiyat)}), RSI daha yüksek dip (${r[a.i].toFixed(0)} → ${r[b.i].toFixed(0)}).`, 'Pozitif uyumsuzluk: satış gücü azalıyor.']);
+          [`Fiyat daha düşük dip yaptı (${f2(a.fiyat)} → ${f2(b.fiyat)}), RSI daha yüksek dip (${r[a.i].toFixed(0).replace('.', ',')} → ${r[b.i].toFixed(0).replace('.', ',')}).`, 'Pozitif uyumsuzluk: satış gücü azalıyor.']);
     }
     if (tepeler.length === 2 && i - tepeler[1].i <= 5) {
       const [a, b] = tepeler;
       if (b.fiyat > a.fiyat && r[b.i] < r[a.i] - 2)
         return eslesme(s, 'rsi-uyumsuzluk', '1d', 'sat', 100,
-          [`Fiyat daha yüksek tepe yaptı (${f2(a.fiyat)} → ${f2(b.fiyat)}), RSI daha düşük tepe (${r[a.i].toFixed(0)} → ${r[b.i].toFixed(0)}).`, 'Negatif uyumsuzluk: alım gücü azalıyor.']);
+          [`Fiyat daha yüksek tepe yaptı (${f2(a.fiyat)} → ${f2(b.fiyat)}), RSI daha düşük tepe (${r[a.i].toFixed(0).replace('.', ',')} → ${r[b.i].toFixed(0).replace('.', ',')}).`, 'Negatif uyumsuzluk: alım gücü azalıyor.']);
     }
     return null;
   },

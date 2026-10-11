@@ -58,9 +58,9 @@ function topukDonusuTara(s: Seriler, periyot: Periyot): ReturnType<Tarayici['tar
   const guven = 55 + (istah === 'ultra iştahlı' ? 20 : istah === 'iştahlı' ? 12 : 0) + (al ? 15 : 0);
   return eslesme(s, 'topuk-donusu', periyot, al ? 'al' : 'izle', Math.min(guven, 95),
     [
-      `Topuk: ${f2(oncesi)} → ${f2(dip)} (%${(dusus * 100).toFixed(0)} sert düşüş), ardından ${kalkisSon - dipI} mumda %${(kalkis * 100).toFixed(0)} hacimli kalkış (${(kalkisHacim / ort20).toFixed(1).replace('.', ',')}x).`,
-      `İşkence bölgesi: ${bolge.length} mum, hacim kalkışın %${((bolgeHacim / kalkisHacim) * 100).toFixed(0)}'i.`,
-      `RSI çizgisi fiyat çizgisinden dik yukarı (${r[dipI].toFixed(0)} → ${r[i].toFixed(0)}): ${istah}.`,
+      `Topuk: ${f2(oncesi)} → ${f2(dip)} (%${(dusus * 100).toFixed(0).replace('.', ',')} sert düşüş), ardından ${kalkisSon - dipI} mumda %${(kalkis * 100).toFixed(0).replace('.', ',')} hacimli kalkış (${(kalkisHacim / ort20).toFixed(1).replace('.', ',')}x).`,
+      `İşkence bölgesi: ${bolge.length} mum, hacim kalkışın %${((bolgeHacim / kalkisHacim) * 100).toFixed(0).replace('.', ',')}'i.`,
+      `RSI çizgisi fiyat çizgisinden dik yukarı (${r[dipI].toFixed(0).replace('.', ',')} → ${r[i].toFixed(0).replace('.', ',')}): ${istah}.`,
       al ? 'Uç yukarı kıvrıldı ve ölü bölge hacmi aşıldı: AL sinyali.' : kivrildi ? 'Uç kıvrıldı, hacim barı bekleniyor.' : 'Uç henüz kıvrılmadı.',
     ],
     { 'Topuk dibi': dip, 'Kalkış tepesi': tepe });
@@ -93,7 +93,7 @@ export const ikiliTepeDip: Tarayici = {
       const rsiIyi = r[c.i] > r[a.i];
       const guven = 50 + (hacimArtti ? 15 : 0) + (rsiIyi ? 15 : 0) + (kirildi ? 15 : 0);
       return eslesme(s, 'ikili-tepe-dip', '1d', kirildi ? 'al' : 'izle', guven,
-        [`İkili dip: ${f2(a.fiyat)} ve ${f2(c.fiyat)} (fark %${(Math.abs(c.fiyat / a.fiyat - 1) * 100).toFixed(1)}), boyun ${f2(boyun)}.`,
+        [`İkili dip: ${f2(a.fiyat)} ve ${f2(c.fiyat)} (fark %${(Math.abs(c.fiyat / a.fiyat - 1) * 100).toFixed(1).replace('.', ',')}), boyun ${f2(boyun)}.`,
          hacimArtti ? 'İkinci dipte hacim arttı.' : 'İkinci dipte hacim artmadı.',
          rsiIyi ? 'RSI ikinci dipte daha yüksek (pozitif uyumsuzluk).' : 'RSI uyumsuzluğu yok.',
          kirildi ? 'Boyun kapanışla aşıldı.' : 'Boyun kırılımı bekleniyor.'],

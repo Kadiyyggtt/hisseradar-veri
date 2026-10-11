@@ -5,6 +5,7 @@ import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { TARAYICILAR } from './stratejiler';
+import { donemAnahtari, portfoyuIlerlet, ucluSec } from './portfoy';
 
 /**
  * SINAMA — yapay seriler üretir, her tarayıcının BİLEREK kurulmuş
@@ -217,6 +218,32 @@ console.log('123-dongusu');
   kontrol('123-dongusu maliyet bandında uymalı', e !== null, e ? '' : 'null');
   const e2 = tarayici('uc-bant-testi').tara(seri(mumla([...sabit(30, 80), ...dogrusal(30, 80, 120), ...dogrusal(5, 120, 104)])), ORTAM);
   kontrol('uc-bant-testi %38,2 temasında uymalı', e2 !== null, e2 ? '' : 'null');
+}
+
+console.log('portföy');
+{
+  const es = (sembol: string, piyasa: 'BIST' | 'ABD', taramaId: string, yon: 'al' | 'izle', guven: number, fiyat: number) =>
+    ({ sembol, piyasa, taramaId, yon, guven, periyot: '1d' as const, aciklama: [], t: 0, fiyat });
+  const liste = [
+    es('AAA', 'BIST', 'ema200', 'al', 100, 10), es('BBB', 'BIST', 'topuk-donusu', 'al', 70, 20), es('CCC', 'BIST', 'qm', 'al', 75, 30),
+    es('DDD', 'BIST', 'heikin', 'al', 100, 40), es('XXX', 'ABD', 'heikin', 'izle', 100, 50), es('YYY', 'ABD', 'fib-merdiveni', 'al', 100, 60),
+  ];
+  const u = ucluSec(liste, 0);
+  kontrol('üçlü: 2 BIST + 1 ABD', u.length === 3 && u.filter((p) => p.piyasa === 'BIST').length === 2, u.map((p) => p.sembol).join(','));
+  kontrol('üçlü: formasyon önce (BBB topuk, CCC qm), ABD al olan YYY', u.map((p) => p.sembol).join(',') === 'BBB,CCC,YYY', u.map((p) => p.sembol).join(','));
+  // Pazartesi 12 Ekim 2026 09:00 TR = 06:00 UTC
+  const pzt = Date.UTC(2026, 9, 12, 6) / 1000;
+  kontrol('hafta anahtarı', donemAnahtari('hafta', pzt) === '2026-H42', donemAnahtari('hafta', pzt));
+  kontrol('ay anahtarı', donemAnahtari('ay', pzt) === '2026-10');
+  // Pazar gecesi 23:30 TR hâlâ aynı hafta, Pazartesi 00:30 TR yeni hafta.
+  kontrol('hafta sınırı TR saatiyle', donemAnahtari('hafta', pzt - 10 * 3600) === '2026-H41' && donemAnahtari('hafta', pzt - 8 * 3600) === '2026-H42');
+  const p1 = portfoyuIlerlet(null, liste, new Map(), pzt);
+  kontrol('ilk portföy 100', p1.hafta?.deger === 100 && p1.ay?.deger === 100 && p1.yil?.deger === 100);
+  const fiyatlar = new Map([['BIST:BBB', 22], ['BIST:CCC', 27], ['ABD:YYY', 66]]); // +10%, -10%, +10% → 103,33
+  const p2 = portfoyuIlerlet(p1, liste, fiyatlar, pzt + 3600);
+  kontrol('aynı dönemde değer güncellenir', p2.hafta?.deger === 103.33 && p2.hafta?.anahtar === '2026-H42', String(p2.hafta?.deger));
+  const p3 = portfoyuIlerlet(p2, liste, fiyatlar, pzt + 7 * 86400);
+  kontrol('yeni haftada eski hafta geçmişe düşer, yeni 100 başlar', p3.gecmis.length === 1 && p3.gecmis[0].deger === 103.33 && p3.hafta?.deger === 100 && p3.ay?.deger === 103.33, `${p3.gecmis.length} ${p3.hafta?.deger} ${p3.ay?.deger}`);
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

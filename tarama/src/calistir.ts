@@ -1,7 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Eslesme, TaramaSonucu } from './tipler';
+import type { Eslesme, Portfoy, TaramaSonucu } from './tipler';
+import { portfoyuIlerlet } from './portfoy';
 import { ortamiOlc } from './ortam';
 import { TARAYICILAR } from './stratejiler';
 import { ABD, BIST } from './veri/evren';
@@ -36,6 +37,8 @@ async function main() {
   const eslesmeler: Eslesme[] = [];
   const hatali: string[] = [];
   const sayac: Record<string, number> = {};
+  /** Son kapanışlar: portföy değerlemesi için, eşleşme olmasa da. */
+  const fiyatlar = new Map<string, number>();
   let bitti = 0;
 
   // Basit eşzamanlılık: N işçi, kuyruktan çeker.
@@ -45,6 +48,7 @@ async function main() {
       const is = isler[sira++];
       try {
         const seriler = await serileriGetir(is.sembol, is.piyasa);
+        fiyatlar.set(`${is.piyasa}:${is.sembol}`, seriler['1d'][seriler['1d'].length - 1].k);
         for (const t of TARAYICILAR) {
           if (t.sart && !t.sart(ortam, is.piyasa)) continue;
           let e: Eslesme | null = null;
@@ -78,18 +82,30 @@ async function main() {
   };
 
   mkdirSync(CIKTI, { recursive: true });
-  // Bir önceki sonuçla fark: bildirim için "yeni" eşleşmeler.
+  // Bir önceki sonuçla fark: bildirim için "yeni" eşleşmeler. Portföy durumu da oradan okunur.
   const oncekiYol = join(CIKTI, 'sonuc.json');
   let yeni: Eslesme[] = sonuc.eslesmeler;
+  let oncekiPortfoy: Portfoy | null = null;
   if (existsSync(oncekiYol)) {
     try {
       const onceki = JSON.parse(readFileSync(oncekiYol, 'utf8')) as TaramaSonucu;
       const anahtar = (e: Eslesme) => `${e.piyasa}:${e.sembol}:${e.taramaId}:${e.yon}`;
       const eski = new Set(onceki.eslesmeler.map(anahtar));
       yeni = sonuc.eslesmeler.filter((e) => !eski.has(anahtar(e)));
+      oncekiPortfoy = onceki.portfoy ?? null;
     } catch {
       /* bozuk eski dosya: hepsi yeni sayılır */
     }
+  }
+  // Deneme taramasında (SINIR) portföy YAZILMAZ: yarım evrenle seçim yapılıp yayına gitmesin.
+  if (sinir === Infinity && !tekPiyasa) {
+    sonuc.portfoy = portfoyuIlerlet(oncekiPortfoy, sonuc.eslesmeler, fiyatlar, sonuc.uretildi);
+    for (const tur of ['hafta', 'ay', 'yil'] as const) {
+      const d = sonuc.portfoy[tur];
+      if (d) console.log(`Portföy ${tur} ${d.anahtar}: ${d.deger} | ${d.pozisyonlar.map((p) => `${p.sembol} ${(p.getiri * 100).toFixed(1)}%`).join(', ')}`);
+    }
+  } else if (oncekiPortfoy) {
+    sonuc.portfoy = oncekiPortfoy;
   }
   writeFileSync(oncekiYol, JSON.stringify(sonuc));
   writeFileSync(join(CIKTI, 'yeni.json'), JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni }));

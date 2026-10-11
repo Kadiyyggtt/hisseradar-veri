@@ -52,6 +52,40 @@ export interface Ortam {
   endeksNabzi: Record<'XU100' | 'SPX', { pozitif: boolean; ema8: number; ema20: number; t: number } | null>;
 }
 
+/** Hayali portföy: dönem başında 100 bazlı, üç hisse (2 BIST + 1 ABD). */
+export interface PortfoyPozisyon {
+  sembol: string;
+  piyasa: 'BIST' | 'ABD';
+  taramaId: string;
+  giris: number;
+  girisT: number;
+  simdi: number;
+  /** Oran: 0,05 = yüzde 5. */
+  getiri: number;
+}
+
+export interface PortfoyDonem {
+  tur: 'hafta' | 'ay' | 'yil';
+  /** '2026-H42', '2026-10', '2026' */
+  anahtar: string;
+  baslangic: number;
+  pozisyonlar: PortfoyPozisyon[];
+  /** 100 bazlı değer: üç pozisyonun eşit ağırlıklı ortalaması. */
+  deger: number;
+}
+
+export interface PortfoyKapanan extends PortfoyDonem {
+  bitis: number;
+}
+
+export interface Portfoy {
+  hafta: PortfoyDonem | null;
+  ay: PortfoyDonem | null;
+  yil: PortfoyDonem | null;
+  /** Kapanan dönemler, en yeni başta; en çok 60 kayıt. */
+  gecmis: PortfoyKapanan[];
+}
+
 export interface TaramaSonucu {
   surum: 1;
   uretildi: number; // unix saniye
@@ -60,6 +94,7 @@ export interface TaramaSonucu {
   /** taramaId → eşleşme sayısı. */
   sayac: Record<string, number>;
   taranan: { BIST: number; ABD: number; hatali: string[] };
+  portfoy?: Portfoy;
 }
 
 export interface Tarayici {

@@ -82,8 +82,8 @@ export const darBayrak: Tarayici = {
     const kirildi = m[i].k > enY;
     return eslesme(s, 'k-dar-bayrak', '1d', kirildi ? 'al' : 'izle', 100,
       [
-        `Direk: ${enYI - enDI} günde ${f2(enD)} → ${f2(enY)} (%${(getiri * 100).toFixed(0)}).`,
-        `Bayrak: ${bayrak.length} gün, derinlik %${(derinlik * 100).toFixed(0)} (sınır %25).`,
+        `Direk: ${enYI - enDI} günde ${f2(enD)} → ${f2(enY)} (%${(getiri * 100).toFixed(0).replace('.', ',')}).`,
+        `Bayrak: ${bayrak.length} gün, derinlik %${(derinlik * 100).toFixed(0).replace('.', ',')} (sınır %25).`,
         kirildi ? 'Bayrağın tepesi kapanışla aşıldı.' : `Kırılım seviyesi ${f2(enY)} bekleniyor.`,
       ],
       { 'Bayrak tepesi': enY, 'Hedef (direk boyu)': enY + (enY - enD) });
