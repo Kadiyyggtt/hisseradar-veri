@@ -170,6 +170,45 @@ console.log('haftalik-cift-onay / heikin / rsi-uyumsuzluk (çalışıyor, hata f
   }
 }
 
+console.log('sekiller: ucgenler / dikdortgen / bayrak / fincan-kulp / kama');
+{
+  // Yükselen üçgen: tepeler 100'de yatay, dipler yükseliyor, son mum 103'e kırıyor.
+  const u: number[] = [...sabit(30, 90)];
+  for (let t = 0; t < 6; t++) { u.push(...dogrusal(5, 90 + t * 1.6, 100), ...dogrusal(5, 100, 91 + (t + 1) * 1.6)); }
+  u.push(103);
+  const hu = [...sabit(u.length - 1, 1000), 2200];
+  const eu = tarayici('ucgenler').tara(seri(mumla(u, hu, 0.003)), ORTAM);
+  kontrol('yükselen üçgen kırılımı uymalı', eu !== null && eu.yon === 'al', eu ? eu.yon + ' ' + eu.aciklama[0] : 'null');
+  kontrol('üçgen: düz trendde uymamalı', tarayici('ucgenler').tara(seri(mumla(dogrusal(120, 50, 150))), ORTAM) === null);
+  // Dikdörtgen: 90-100 arasında 6 tur, son mum 102.
+  const d: number[] = [...sabit(30, 95)];
+  for (let t = 0; t < 6; t++) d.push(...dogrusal(5, 90, 100), ...dogrusal(5, 100, 90));
+  d.push(102);
+  const ed = tarayici('dikdortgen').tara(seri(mumla(d, [...sabit(d.length - 1, 1000), 2000], 0.003)), ORTAM);
+  kontrol('dikdörtgen kırılımı uymalı', ed !== null && ed.yon === 'al', ed ? ed.yon : 'null');
+  // Bayrak: 10 mumda 80→100, 7 mum 100→96 bez, son mum 101.
+  const b = [...sabit(50, 80), ...dogrusal(10, 80, 100), ...dogrusal(7, 100, 96), 101];
+  const eb = tarayici('bayrak').tara(seri(mumla(b, [...sabit(b.length - 1, 1000), 1800], 0.004)), ORTAM);
+  kontrol('bayrak kırılımı uymalı', eb !== null && eb.yon === 'al', eb ? eb.yon : 'null');
+  // Fincan-kulp: 60 mumluk U (100→75→100), 8 mumluk kulp 100→95, son mum 102.
+  const fk: number[] = [...sabit(40, 100)];
+  for (let t = 0; t < 60; t++) fk.push(100 - 25 * Math.sin((Math.PI * t) / 59));
+  fk.push(...dogrusal(8, 100, 95), 102);
+  const ef = tarayici('fincan-kulp').tara(seri(mumla(fk, [...sabit(fk.length - 1, 1000), 1800], 0.003)), ORTAM);
+  kontrol('fincan-kulp boyun kırılımı uymalı', ef !== null && ef.yon === 'al', ef ? ef.yon + ' ' + ef.aciklama[0] : 'null');
+  // Alçalan kama: tepeler 100→90, dipler 92→88 (yakınsıyor), son mum üst çizgiyi kırar.
+  const ka: number[] = [...sabit(30, 100)];
+  for (let t = 0; t < 6; t++) ka.push(...dogrusal(5, 100 - t * 2, 92 - t * 0.8), ...dogrusal(5, 92 - t * 0.8, 100 - (t + 1) * 2));
+  ka.push(96);
+  const ek = tarayici('kama').tara(seri(mumla(ka, undefined, 0.003)), ORTAM);
+  kontrol('alçalan kama kırılımı uymalı', ek !== null && ek.yon === 'al', ek ? ek.yon + ' ' + ek.aciklama[0] : 'null');
+  for (const id of ['bes-dalga', 'abcd-klasik']) {
+    let ok = true;
+    try { tarayici(id).tara(seri(mumla(dalga(400, 100, 15, 90))), ORTAM); } catch (e) { ok = false; console.error(e); }
+    kontrol(`${id} hata fırlatmadı`, ok);
+  }
+}
+
 console.log('123-dongusu');
 {
   // dip 80 → tepe 120, sonra %61,8 maliyete (95,3) iniş.
