@@ -1,0 +1,17 @@
+{
+  "name": "hisseradar-veri",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HisseRadar tarama motoru ve günlük çıktısı",
+  "scripts": {
+    "tip": "tsc -p tsconfig.json",
+    "tara": "tsx tarama/src/calistir.ts",
+    "tara:test": "tsx tarama/src/sina.ts",
+    "bildir": "tsx tarama/src/bildirim.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,49 @@
+name: Tarama
+
+# Günde dört kez: BIST açılış (10:30 TR), BIST gün ortası (14:00 TR),
+# BIST kapanış (18:30 TR), ABD kapanış (23:30 TR). Hafta içi.
+# Saatler UTC; Türkiye UTC+3.
+on:
+  schedule:
+    - cron: '30 7 * * 1-5'
+    - cron: '0 11 * * 1-5'
+    - cron: '30 15 * * 1-5'
+    - cron: '30 20 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tarama
+  cancel-in-progress: false
+
+jobs:
+  tara:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Tarayıcıları sına
+        run: npm run tara:test
+      - name: Tara
+        run: npm run tara
+        env:
+          ESZAMANLI: '3'
+      - name: Bildirim gönder
+        run: npm run bildir
+        env:
+          FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}
+      - name: Sonucu depoya yaz
+        run: |
+          git config user.name "hisseradar-tarama"
+          git config user.email "tarama@users.noreply.github.com"
+          git add docs/tarama
+          git diff --cached --quiet && echo "değişiklik yok" && exit 0
+          git commit -m "Tarama sonucu $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git push
