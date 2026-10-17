@@ -220,6 +220,13 @@ console.log('123-dongusu');
   kontrol('uc-bant-testi %38,2 temasında uymalı', e2 !== null, e2 ? '' : 'null');
 }
 
+console.log('iyelik eki');
+{
+  const { iyelikEki } = require('./stratejiler/ortak') as typeof import('./stratejiler/ortak');
+  const beklenen: [number, string][] = [[32, "'si"], [41, "'i"], [50, "'si"], [100, "'ü"], [3, "'ü"], [7, "'si"], [10, "'u"], [60, "'ı"], [90, "'ı"], [4, "'ü"], [25, "'i"], [1000, "'i"], [200, "'ü"]];
+  for (const [n, e] of beklenen) kontrol(`iyelik ${n} → ${e}`, iyelikEki(n) === e, iyelikEki(n));
+}
+
 console.log('portföy');
 {
   const es = (sembol: string, piyasa: 'BIST' | 'ABD', taramaId: string, yon: 'al' | 'izle', guven: number, fiyat: number) =>

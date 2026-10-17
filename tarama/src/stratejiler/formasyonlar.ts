@@ -1,7 +1,7 @@
 import type { Periyot, Seriler, Tarayici } from '../tipler';
 import { rsi } from '../gostergeler/rsi';
 import { egim, geriAlma, hacimOrt, pivotlar, yakin } from '../gostergeler/pivot';
-import { eslesme, f2, kapanislar } from './ortak';
+import { eslesme, f2, iyelikEki, kapanislar } from './ortak';
 
 /**
  * 2.14 — TOPUK DÖNÜŞÜ. Şartlar:
@@ -59,7 +59,7 @@ function topukDonusuTara(s: Seriler, periyot: Periyot): ReturnType<Tarayici['tar
   return eslesme(s, 'topuk-donusu', periyot, al ? 'al' : 'izle', Math.min(guven, 95),
     [
       `Topuk: Fiyat ${f2(oncesi)} seviyesinden ${f2(dip)} seviyesine yüzde ${(dusus * 100).toFixed(0)} sert düştü, ardından ${kalkisSon - dipI} mumda yüzde ${(kalkis * 100).toFixed(0)} yükseldi. Kalkış hacmi 20 günlük ortalamanın ${(kalkisHacim / ort20).toFixed(1).replace('.', ',')} katı.`,
-      `İşkence bölgesi ${bolge.length} mum sürdü. Bu bölgedeki hacim, kalkış hacminin yüzde ${((bolgeHacim / kalkisHacim) * 100).toFixed(0)}'i kadar.`,
+      `İşkence bölgesi ${bolge.length} mum sürdü. Bu bölgedeki hacim, kalkış hacminin yüzde ${((bolgeHacim / kalkisHacim) * 100).toFixed(0)}${iyelikEki((bolgeHacim / kalkisHacim) * 100)} kadar.`,
       `RSI ${r[dipI].toFixed(0)} değerinden ${r[i].toFixed(0)} değerine çıktı. RSI çizgisi fiyat çizgisinden daha dik yukarı, formasyon ${istah}.`,
       al ? 'Uç yukarı kıvrıldı ve ölü bölgenin hacmi aşıldı. Al şartı sağlandı.' : kivrildi ? 'Uç yukarı kıvrıldı, hacim barı bekleniyor.' : 'Uç henüz yukarı kıvrılmadı.',
     ],
@@ -211,7 +211,7 @@ export const abcdEsnek: Tarayici = {
     if (!dYakin) return null;
     return eslesme(s, 'abcd-esnek', '1d', dususABCD ? 'al' : 'sat', 60,
       [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: A noktası ${f2(A.fiyat)}, B noktası ${f2(B.fiyat)}, C noktası ${f2(C.fiyat)}.`,
-       `C noktası, A ile B arasının yüzde ${yuzdeC}'ini geri aldı. 1 bölü ${yuzdeC} eşittir ${katsayi.toFixed(4).replace('.', ',')}, yani hedef yüzde ${hedefYuzde}.`,
+       `C noktası, A ile B arasının yüzde ${yuzdeC}${iyelikEki(yuzdeC)}ni geri aldı. 1 bölü ${yuzdeC} eşittir ${katsayi.toFixed(4).replace('.', ',')}, yani hedef yüzde ${hedefYuzde}.`,
        `Fiyat hedef bölgesinde. İlk iki hedef ${hedefler.slice(0, 2).map(f2).join(' ve ')}. Yedek hedefler yüzde 127 için ${f2(klasik[0])}, yüzde 161 için ${f2(klasik[1])}.`,
        `${dususABCD ? 'Düşüş' : 'Yükseliş'} dalgası burada bitebilir. Dönüş aranır.`],
       { 'Hedef 1': hedefler[0], 'Hedef 2': hedefler[1], 'Yüzde 127 hedefi': klasik[0], 'Yüzde 161 hedefi': klasik[1] });

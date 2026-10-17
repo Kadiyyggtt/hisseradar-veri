@@ -1,7 +1,7 @@
 import type { Tarayici } from '../tipler';
 import { asagiKesti, ema, sma, sonYukariKesisme, yukariKesti } from '../gostergeler/ortalama';
 import { hacimOrt } from '../gostergeler/pivot';
-import { eslesme, f2, kapanislar } from './ortak';
+import { eslesme, f2, iyelikEki, kapanislar } from './ortak';
 
 /** 3.1 — 200 günlük EMA'yı son 3 mumda kesenler. */
 export const ema200: Tarayici = {
@@ -111,7 +111,7 @@ export const dugum: Tarayici = {
     const oran = en / m[i].k;
     if (oran > 0.015) return null;
     return eslesme(s, 'dugum', '1d', 'izle', 100,
-      [`5, 8, 13 ve 21 periyotluk üssel ortalamalar fiyatın yüzde ${(oran * 100).toFixed(2).replace('.', ',')}'si içinde düğümlendi.`, 'Kırılım yakın. Yönü hacim gösterecek.'],
+      [`5, 8, 13 ve 21 periyotluk üssel ortalamalar fiyatın yüzde ${(oran * 100).toFixed(2).replace('.', ',')}${iyelikEki(Math.round((oran * 100 * 100) % 100) || Math.round(oran * 100))} içinde düğümlendi.`, 'Kırılım yakın. Yönü hacim gösterecek.'],
       { '5 günlük ortalama': d[0], '21 günlük ortalama': d[3] });
   },
 };

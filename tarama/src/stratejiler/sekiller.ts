@@ -1,6 +1,6 @@
 import type { Mum, Seriler, Tarayici } from '../tipler';
 import { egim, hacimOrt, pivotlar, yakin } from '../gostergeler/pivot';
-import { eslesme, f2 } from './ortak';
+import { eslesme, f2, iyelikEki } from './ortak';
 
 /**
  * ŞEKİL TARAYICILARI — üçgen, kama, dikdörtgen, bayrak, fincan-kulp,
@@ -259,7 +259,7 @@ export const abcdKlasik: Tarayici = {
     const abSure = B.i - A.i;
     const cdSure = i - C.i;
     return eslesme(s, 'abcd-klasik', '1d', dususABCD ? 'al' : 'sat', yakin(abSure, cdSure, 25) ? 70 : 55,
-      [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: C noktası, A ile B arasının yüzde ${(c * 100).toFixed(1).replace('.', ',')}'ini geri aldı. Bu, yüzde 61,8 ya da 78,6 kuralına uyuyor.`,
+      [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: C noktası, A ile B arasının yüzde ${(c * 100).toFixed(1).replace('.', ',')}${iyelikEki(Math.round(((c * 100) % 1) * 10) || Math.round(c * 100))}ni geri aldı. Bu, yüzde 61,8 ya da 78,6 kuralına uyuyor.`,
        `D hedefleri: yüzde 127,2 için ${f2(h1)}, yüzde 161,8 için ${f2(h2)}. Fiyat hedef bölgesinde.`,
        `Zaman: A'dan B'ye ${abSure} mum, C'den D'ye ${cdSure} mum${yakin(abSure, cdSure, 25) ? '. AB eşittir CD zaman kuralı tutuyor.' : '.'}`],
       { 'Yüzde 127,2 hedefi': h1, 'Yüzde 161,8 hedefi': h2 });
