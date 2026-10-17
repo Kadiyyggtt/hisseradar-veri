@@ -32,11 +32,11 @@ export const dongu123: Tarayici = {
     const hacimDusuk = son.h < hacimOrt(m, 20, m.length - 2);
     return eslesme(s, '123-dongusu', '1d', 'izle', 75,
       [
-        `1 = ${f2(d.bir.fiyat)} dip, 2 = ${f2(d.iki.fiyat)} tepe; alış maliyeti (%61,8) ${f2(maliyet)}.`,
-        `Kapanış ${f2(son.k)} maliyet bandında.`,
-        hacimDusuk ? 'Hacim 20 gün ortalamasının altında: satış tükeniyor olabilir.' : 'Hacim ortalamanın üstünde: maliyetin kırılma riski var.',
+        `1 noktası ${f2(d.bir.fiyat)} dip, 2 noktası ${f2(d.iki.fiyat)} tepe. Yüzde 61,8 alış maliyeti ${f2(maliyet)}.`,
+        `Kapanış ${f2(son.k)} ile maliyet bandının içinde.`,
+        hacimDusuk ? 'Hacim 20 günlük ortalamanın altında. Satış tükeniyor olabilir.' : 'Hacim ortalamanın üstünde. Maliyetin kırılma riski var.',
       ],
-      { '1 (dip)': d.bir.fiyat, '2 (tepe)': d.iki.fiyat, 'Maliyet %61,8': maliyet, '%38,2': fib(d.iki.fiyat, d.bir.fiyat, 0.382) });
+      { '1 noktası (dip)': d.bir.fiyat, '2 noktası (tepe)': d.iki.fiyat, 'Maliyet (yüzde 61,8)': maliyet, 'Yüzde 38,2 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.382) });
   },
 };
 
@@ -56,8 +56,8 @@ export const ucBantTesti: Tarayici = {
         const onceDegdi = m.slice(d.iki.i + 1, j).some((x) => x.d <= s382);
         if (onceDegdi) return null;
         return eslesme(s, 'uc-bant-testi', '1d', 'izle', 100,
-          [`Tepe ${f2(d.iki.fiyat)} sonrası düşüş %38,2 bandına (${f2(s382)}) ${g === 0 ? 'bugün' : g + ' gün önce'} ilk kez değdi.`, 'Ara düzeltme değil; maliyete (%61,8) kadar inmeye aday.'],
-          { '%38,2': s382, '%50': fib(d.iki.fiyat, d.bir.fiyat, 0.5), 'Maliyet %61,8': fib(d.iki.fiyat, d.bir.fiyat, 0.618) });
+          [`${f2(d.iki.fiyat)} tepesinden gelen düşüş, yüzde 38,2 bandına (${f2(s382)}) ${g === 0 ? 'bugün' : g + ' gün önce'} ilk kez değdi.`, 'Bu bir ara düzeltme değil. Fiyat yüzde 61,8 maliyetine kadar inmeye aday.'],
+          { 'Yüzde 38,2 seviyesi': s382, 'Yüzde 50 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.5), 'Maliyet (yüzde 61,8)': fib(d.iki.fiyat, d.bir.fiyat, 0.618) });
       }
     }
     return null;
@@ -83,8 +83,8 @@ export const sahteCikis: Tarayici = {
     const satisMaliyeti = fib(dip, d.iki.fiyat, 0.618);
     if (m[i].k > satisMaliyeti) return null; // artık sahte çıkış değil
     return eslesme(s, 'sahte-cikis', '1d', 'al', 70,
-      [`Satış maliyet bandında (${f2(maliyet)}) durdu, ${i - uc} gündür yukarı dönüyor.`, `Hedef %38,2: ${f2(hedef)} (kâr stopu en az buraya).`, `Tavan: satış maliyeti ${f2(satisMaliyeti)}; hacimli aşılırsa yeni döngü ihtimali.`],
-      { 'Hedef %38,2': hedef, 'Satış maliyeti': satisMaliyeti, 'Maliyet %61,8': maliyet });
+      [`Satış, maliyet bandında (${f2(maliyet)}) durdu ve fiyat ${i - uc} gündür yukarı dönüyor.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kâr stopu en az buraya konmalı.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
+      { 'Yüzde 38,2 hedefi': hedef, 'Satış maliyeti': satisMaliyeti, 'Maliyet (yüzde 61,8)': maliyet });
   },
 };
 
@@ -107,11 +107,11 @@ export const yeniDongu: Tarayici = {
     const kat = m[i].h / (hacimOrt(m, 20, i - 1) || 1);
     return eslesme(s, 'yeni-dongu', '1d', 'al', kat >= 1.5 ? 85 : 55,
       [
-        `3 = ${f2(uc.fiyat)}, maliyete (${f2(maliyet)}) inmedi: satış isteksiz.`,
-        gecti ? `Satış maliyeti ${f2(satisMaliyeti)} bugün geçildi.` : `Zirve ${f2(d.iki.fiyat)} geçildi: pozisyon artırma bölgesi.`,
-        `Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı${kat >= 1.5 ? ': iştahlı.' : ': zayıf, ikili tepe riski.'}`,
+        `3 noktası ${f2(uc.fiyat)} ile maliyete (${f2(maliyet)}) inmedi. Satış isteksiz.`,
+        gecti ? `${f2(satisMaliyeti)} satış maliyeti bugün geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Burası pozisyon artırma bölgesidir.`,
+        `Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı${kat >= 1.5 ? ', iştahlı bir geçiş.' : ', zayıf bir geçiş. İkili tepe riski var.'}`,
       ],
-      { 'Satış maliyeti': satisMaliyeti, 'Zirve (2)': d.iki.fiyat, 'Maliyet %61,8': maliyet });
+      { 'Satış maliyeti': satisMaliyeti, 'Zirve (2 noktası)': d.iki.fiyat, 'Maliyet (yüzde 61,8)': maliyet });
   },
 };
 
@@ -129,7 +129,7 @@ export const aySonu: Tarayici = {
         const pozitif = m[i].k > m[i].a;
         if (pozitif && yakin(m[i].k, maliyet, 6))
           return eslesme(s, 'ay-sonu-taramasi', '1mo', 'izle', 100,
-            [`Aylık 1-2-3: dip ${f2(p[j - 1].fiyat)}, tepe ${f2(p[j].fiyat)}, maliyet ${f2(maliyet)}.`, 'Son ay mumu pozitif kapattı ve maliyet bölgesinde.', 'Büyük plan: takip listesine alınmalı.'],
+            [`Aylık 1-2-3 döngüsü: dip ${f2(p[j - 1].fiyat)}, tepe ${f2(p[j].fiyat)}, maliyet ${f2(maliyet)}.`, 'Son ay mumu pozitif kapattı ve fiyat maliyet bölgesinde.', 'Büyük plan gereği takip listesine alınmalı.'],
             { 'Aylık maliyet': maliyet });
         return null;
       }

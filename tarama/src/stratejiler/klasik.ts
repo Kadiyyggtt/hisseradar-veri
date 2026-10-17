@@ -10,7 +10,7 @@ export const yukselenDipler: Tarayici = {
     if (p.length < 3) return null;
     if (!(p[0].fiyat < p[1].fiyat && p[1].fiyat < p[2].fiyat)) return null;
     return eslesme(s, 'yukselen-dipler', '1d', 'izle', 100,
-      [`Son üç dip yükseliyor: ${f2(p[0].fiyat)} → ${f2(p[1].fiyat)} → ${f2(p[2].fiyat)}.`, 'Yükseliş öngörüsü için ön şart sağlanıyor.']);
+      [`Son üç dip sırasıyla ${f2(p[0].fiyat)}, ${f2(p[1].fiyat)} ve ${f2(p[2].fiyat)} ile yükseliyor.`, 'Yükseliş öngörüsü için ön şart sağlanıyor.']);
   },
 };
 
@@ -47,11 +47,11 @@ export const kuyrukluW: Tarayici = {
       const ortaUstKapanis = m[i].k > tepe && ikinciDipI < i;
       return eslesme(s, 'kuyruklu-w', '1d', ortaUstKapanis ? 'al' : 'izle', 100,
         [
-          `${i - j} gün önce uzun alt kuyruklu dip mumu: kutu ${f2(kutuAlt)} - ${f2(kutuUst)}.`,
-          `Tepki tepesi ${f2(tepe)}; fiyat kutuya döndü, kapanış kutunun altına inmedi.`,
-          ortaUstKapanis ? `Bugünkü kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde: şartlar tamam.` : `W'nin orta tepesi ${f2(tepe)} üstünde kapanış bekleniyor.`,
+          `${i - j} gün önce uzun alt kuyruklu bir dip mumu oluştu. Kutu ${f2(kutuAlt)} ile ${f2(kutuUst)} arasında.`,
+          `Tepki tepesi ${f2(tepe)}. Fiyat kutuya geri döndü ama kapanış kutunun altına inmedi.`,
+          ortaUstKapanis ? `Bugünkü kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde. Şartların tamamı sağlandı.` : `W'nin orta tepesi olan ${f2(tepe)} seviyesinin üstünde kapanış bekleniyor.`,
         ],
-        { 'Kutu alt': kutuAlt, 'Kutu üst': kutuUst, 'Orta tepe': tepe });
+        { 'Kutunun altı': kutuAlt, 'Kutunun üstü': kutuUst, 'Orta tepe': tepe });
     }
     return null;
   },
@@ -82,9 +82,9 @@ export const darBayrak: Tarayici = {
     const kirildi = m[i].k > enY;
     return eslesme(s, 'k-dar-bayrak', '1d', kirildi ? 'al' : 'izle', 100,
       [
-        `Direk: ${enYI - enDI} günde ${f2(enD)} → ${f2(enY)} (%${(getiri * 100).toFixed(0).replace('.', ',')}).`,
-        `Bayrak: ${bayrak.length} gün, derinlik %${(derinlik * 100).toFixed(0).replace('.', ',')} (sınır %25).`,
-        kirildi ? 'Bayrağın tepesi kapanışla aşıldı.' : `Kırılım seviyesi ${f2(enY)} bekleniyor.`,
+        `Direk: ${enYI - enDI} günde ${f2(enD)} seviyesinden ${f2(enY)} seviyesine yüzde ${(getiri * 100).toFixed(0)} yükseliş.`,
+        `Bayrak: ${bayrak.length} gün sürdü, derinliği yüzde ${(derinlik * 100).toFixed(0)}. Sınır yüzde 25.`,
+        kirildi ? 'Bayrağın tepesi kapanışla aşıldı.' : `${f2(enY)} seviyesinin kırılması bekleniyor.`,
       ],
       { 'Bayrak tepesi': enY, 'Hedef (direk boyu)': enY + (enY - enD) });
   },
@@ -103,7 +103,7 @@ export const zirve52: Tarayici = {
     if (kat < 1.5) return null;
     const nabiz = o.endeksNabzi[s.piyasa === 'BIST' ? 'XU100' : 'SPX']?.pozitif;
     return eslesme(s, 'k-52-hafta', '1d', 'al', nabiz ? 100 : 60,
-      [`Kapanış ${f2(m[i].k)}, son 52 haftanın zirvesi ${f2(onceki)} aşıldı.`, `Hacim 50 gün ortalamasının ${kat.toFixed(1).replace('.', ',')} katı.`, nabiz ? 'Endeks Nabzı pozitif.' : 'Endeks Nabzı negatif: güven düşürüldü.'],
-      { 'Eski zirve (kutu tabanı)': onceki });
+      [`Kapanış ${f2(m[i].k)} ile son 52 haftanın zirvesi olan ${f2(onceki)} aşıldı.`, `Hacim 50 günlük ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.`, nabiz ? 'Endeks Nabzı pozitif.' : 'Endeks Nabzı negatif, bu yüzden güven düşürüldü.'],
+      { 'Eski zirve (kutunun tabanı)': onceki });
   },
 };

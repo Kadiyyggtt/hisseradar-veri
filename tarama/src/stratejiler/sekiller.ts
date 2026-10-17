@@ -68,9 +68,9 @@ export const ucgenler: Tarayici = {
     const yon = yukariKirdi ? 'al' : asagiKirdi ? 'sat' : 'izle';
     const guven = 50 + (yon !== 'izle' ? (kat >= 1.5 ? 30 : 10) : 0);
     return eslesme(s, 'ucgenler', '1d', yon, guven,
-      [`${tur === 'simetrik' ? 'Simetrik' : tur === 'yukselen' ? 'Yükselen' : 'Alçalan'} üçgen: üst çizgi ${f2(ustS)}, alt çizgi ${f2(altS)}, daralıyor.`,
-       yukariKirdi ? `Üst çizgi kapanışla kırıldı${kat >= 1.5 ? ', hacim ortalamanın ' + kat.toFixed(1).replace('.', ',') + ' katı.' : '; hacim zayıf, sahte olabilir.'}` : asagiKirdi ? 'Alt çizgi aşağı kırıldı.' : 'Kırılım bekleniyor, hacme bakılmalı.',
-       `Hedef: üçgen boyu (${f2(k.genislik)}) kırılım noktasına eklenir.`],
+      [`${tur === 'simetrik' ? 'Simetrik' : tur === 'yukselen' ? 'Yükselen' : 'Alçalan'} üçgen: Üst çizgi ${f2(ustS)}, alt çizgi ${f2(altS)}. Aralık daralıyor.`,
+       yukariKirdi ? `Üst çizgi kapanışla kırıldı${kat >= 1.5 ? '. Hacim ortalamanın ' + kat.toFixed(1).replace('.', ',') + ' katı.' : '. Hacim zayıf, kırılım sahte olabilir.'}` : asagiKirdi ? 'Alt çizgi aşağı kırıldı.' : 'Kırılım bekleniyor, hacme bakılmalı.',
+       `Hedef: Üçgenin boyu (${f2(k.genislik)}) kırılım noktasına eklenir.`],
       { 'Üst çizgi': ustS, 'Alt çizgi': altS, 'Hedef (yukarı)': ustS + k.genislik, 'Hedef (aşağı)': altS - k.genislik });
   },
 };
@@ -95,10 +95,10 @@ export const kama: Tarayici = {
     const kirildi = tur === 'alcalan' ? fiyat > ustS : fiyat < altS;
     const basi = tur === 'alcalan' ? k.tepeler[0].fiyat : k.dipler[0].fiyat;
     return eslesme(s, 'kama', '1d', kirildi ? (tur === 'alcalan' ? 'al' : 'sat') : 'izle', kirildi ? 70 : 50,
-      [`${tur === 'alcalan' ? 'Alçalan' : 'Yükselen'} kama: dipler ve tepeler birlikte ${tur === 'alcalan' ? 'alçalıyor' : 'yükseliyor'}, çizgiler yakınsıyor.`,
-       kirildi ? `${tur === 'alcalan' ? 'Üst' : 'Alt'} çizgi kırıldı: ${tur === 'alcalan' ? 'yükseliş' : 'düşüş'} beklenir.` : 'Kırılım bekleniyor.',
-       `Hedef: kamanın başladığı seviye ${f2(basi)}.`],
-      { 'Üst çizgi': ustS, 'Alt çizgi': altS, 'Hedef (kama başı)': basi });
+      [`${tur === 'alcalan' ? 'Alçalan' : 'Yükselen'} kama: Dipler ve tepeler birlikte ${tur === 'alcalan' ? 'alçalıyor' : 'yükseliyor'}, çizgiler birbirine yaklaşıyor.`,
+       kirildi ? `${tur === 'alcalan' ? 'Üst' : 'Alt'} çizgi kırıldı. ${tur === 'alcalan' ? 'Yükseliş' : 'Düşüş'} beklenir.` : 'Kırılım bekleniyor.',
+       `Hedef: Kamanın başladığı seviye olan ${f2(basi)}.`],
+      { 'Üst çizgi': ustS, 'Alt çizgi': altS, 'Hedef (kamanın başı)': basi });
   },
 };
 
@@ -121,10 +121,10 @@ export const dikdortgen: Tarayici = {
     const kat = m[k.i].h / (hacimOrt(m, 20, k.i - 1) || 1);
     const yon = fiyat > ustS ? 'al' : fiyat < altS ? 'sat' : 'izle';
     return eslesme(s, 'dikdortgen', '1d', yon, yon === 'izle' ? 55 : kat >= 1.5 ? 85 : 60,
-      [`Dikdörtgen: üst ${f2(ustS)} (${temasUst} temas), alt ${f2(altS)} (${temasAlt} temas).`,
-       yon === 'al' ? `Üst yatay kırıldı, hacim ${kat.toFixed(1).replace('.', ',')}x.` : yon === 'sat' ? 'Alt yatay kırıldı.' : 'Kutunun içinde; kırılım bekleniyor.',
-       `Hedef: kutu boyu (${f2(ustS - altS)}).`],
-      { Üst: ustS, Alt: altS, 'Hedef (yukarı)': ustS + (ustS - altS), 'Hedef (aşağı)': altS - (ustS - altS) });
+      [`Dikdörtgen: Üst yatay ${f2(ustS)} seviyesinde ${temasUst} kez, alt yatay ${f2(altS)} seviyesinde ${temasAlt} kez test edildi.`,
+       yon === 'al' ? `Üst yatay kırıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.` : yon === 'sat' ? 'Alt yatay kırıldı.' : 'Fiyat kutunun içinde, kırılım bekleniyor.',
+       `Hedef: Kutunun boyu (${f2(ustS - altS)}) kırılım noktasına eklenir.`],
+      { 'Üst yatay': ustS, 'Alt yatay': altS, 'Hedef (yukarı)': ustS + (ustS - altS), 'Hedef (aşağı)': altS - (ustS - altS) });
   },
 };
 
@@ -150,11 +150,11 @@ export const bayrak: Tarayici = {
       const kirildi = m[i].k > bezUst;
       const kat = m[i].h / (hacimOrt(m, 20, i - 1) || 1);
       return eslesme(s, 'bayrak', '1d', kirildi ? 'al' : 'izle', kirildi ? (kat >= 1.5 ? 75 : 55) : 50,
-        [`Direk: ${bezBas - dipI} mumda %${(direk * 100).toFixed(0).replace('.', ',')} yükseliş (${f2(m[dipI].d)} → ${f2(m[bezBas].k)}).`,
-         `Bez: ${bez} mum, derinlik %${(bezDerinlik * 100).toFixed(0).replace('.', ',')}, hafif aşağı/yatay.`,
-         kirildi ? `Bezin üstü (${f2(bezUst)}) kapanışla aşıldı; hacim ${kat.toFixed(1).replace('.', ',')}x.` : `Kırılım seviyesi ${f2(bezUst)} bekleniyor.`,
-         'Klasik hedef direk boyu. 1-2-3 bağlamına bakmadan alınmaz.'],
-        { 'Bez üstü': bezUst, 'Hedef (direk boyu)': bezUst + (m[bezBas].k - m[dipI].d) });
+        [`Direk: ${bezBas - dipI} mumda ${f2(m[dipI].d)} seviyesinden ${f2(m[bezBas].k)} seviyesine yüzde ${(direk * 100).toFixed(0)} yükseliş.`,
+         `Bez: ${bez} mum sürdü, derinliği yüzde ${(bezDerinlik * 100).toFixed(0)}. Hafif aşağı ya da yatay seyir.`,
+         kirildi ? `Bezin üstü (${f2(bezUst)}) kapanışla aşıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.` : `${f2(bezUst)} seviyesinin kırılması bekleniyor.`,
+         'Klasik hedef direk boyudur. 1-2-3 döngüsündeki yerine bakmadan alınmaz.'],
+        { 'Bezin üstü': bezUst, 'Hedef (direk boyu)': bezUst + (m[bezBas].k - m[dipI].d) });
     }
     return null;
   },
@@ -195,10 +195,10 @@ export const fincanKulp: Tarayici = {
       const kirildi = m[i].k > boyun;
       const kat = m[i].h / (hacimOrt(m, 20, i - 1) || 1);
       return eslesme(s, 'fincan-kulp', '1d', kirildi ? 'al' : 'izle', kirildi ? (kat >= 1.5 ? 80 : 60) : 55,
-        [`Fincan: ${uzunluk} mum, derinlik %${(derinlik * 100).toFixed(0).replace('.', ',')}, dip ${f2(dip)} ortada (U).`,
-         `Kulp: ${kulp.length} mum, derinlik %${(kulpDerinlik * 100).toFixed(0).replace('.', ',')}, fincanın üst yarısında.`,
-         kirildi ? `Boyun ${f2(boyun)} kapanışla aşıldı; hacim ${kat.toFixed(1).replace('.', ',')}x.` : `Boyun ${f2(boyun)} bekleniyor.`],
-        { Boyun: boyun, 'Hedef (klasik ×1)': boyun + (boyun - dip), 'Hedef (×2)': boyun + 2 * (boyun - dip) });
+        [`Fincan: ${uzunluk} mum sürdü, derinliği yüzde ${(derinlik * 100).toFixed(0)}. Dip ${f2(dip)} ile ortada, yani U biçiminde.`,
+         `Kulp: ${kulp.length} mum sürdü, derinliği yüzde ${(kulpDerinlik * 100).toFixed(0)}. Fincanın üst yarısında kaldı.`,
+         kirildi ? `Boyun çizgisi (${f2(boyun)}) kapanışla aşıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.` : `Boyun çizgisinin (${f2(boyun)}) aşılması bekleniyor.`],
+        { Boyun: boyun, 'Hedef (bir boy)': boyun + (boyun - dip), 'Hedef (iki boy)': boyun + 2 * (boyun - dip) });
     }
     return null;
   },
@@ -227,10 +227,10 @@ export const besDalga: Tarayici = {
     const pozitif = dalga[0].tur === 'dip'; // en büyük V'nin ucu dip → yükseliş sayımı
     const w = bes.tur === dalga[0].tur;
     return eslesme(s, 'bes-dalga', '1d', 'izle', 55,
-      [`${pozitif ? 'Pozitif' : 'Negatif'} sayım: 1=${f2(dalga[0].fiyat)} (en büyük dalga, %${(enBuyuk * 100).toFixed(0).replace('.', ',')}), 2=${f2(dalga[1].fiyat)}, 3=${f2(dalga[2].fiyat)}, 4=${f2(dalga[3].fiyat)}, 5=${f2(bes.fiyat)}.`,
-       `5 numaralı bölge oluştu: ${pozitif ? 'al' : 'sat'} sinyali aranacak yer${w ? ' (W/ters W ihtimali, marj beklentisi yüksek)' : ''}.`,
-       'Heikin teyidiyle giriş yapılır, sonra hemen ters sayım yapılır.'],
-      { '5 bölgesi': bes.fiyat, '4': dalga[3].fiyat });
+      [`${pozitif ? 'Pozitif' : 'Negatif'} sayım: 1 noktası ${f2(dalga[0].fiyat)} (en büyük dalga, yüzde ${(enBuyuk * 100).toFixed(0)}), 2 noktası ${f2(dalga[1].fiyat)}, 3 noktası ${f2(dalga[2].fiyat)}, 4 noktası ${f2(dalga[3].fiyat)}, 5 noktası ${f2(bes.fiyat)}.`,
+       `5 numaralı bölge oluştu. Burası ${pozitif ? 'al' : 'sat'} şartının aranacağı yerdir${w ? '. W ya da ters W ihtimali var, marj beklentisi yüksek' : ''}.`,
+       'Heikin Ashi teyidiyle giriş yapılır, ardından hemen ters sayım yapılır.'],
+      { '5 noktası': bes.fiyat, '4 noktası': dalga[3].fiyat });
   },
 };
 
@@ -259,10 +259,10 @@ export const abcdKlasik: Tarayici = {
     const abSure = B.i - A.i;
     const cdSure = i - C.i;
     return eslesme(s, 'abcd-klasik', '1d', dususABCD ? 'al' : 'sat', yakin(abSure, cdSure, 25) ? 70 : 55,
-      [`ABCD ${dususABCD ? 'düşüş' : 'yükseliş'}: C, A-B'nin %${(c * 100).toFixed(1).replace('.', ',')}'ini geri aldı (61,8/78,6 kuralı).`,
-       `D hedefleri %127,2 = ${f2(h1)}, %161,8 = ${f2(h2)}; fiyat hedef bölgesinde.`,
-       `Zaman: A-B ${abSure} mum, C-D ${cdSure} mum${yakin(abSure, cdSure, 25) ? ' (AB=CD zamanı tutuyor).' : '.'}`],
-      { '%127,2': h1, '%161,8': h2 });
+      [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: C noktası, A ile B arasının yüzde ${(c * 100).toFixed(1).replace('.', ',')}'ini geri aldı. Bu, yüzde 61,8 ya da 78,6 kuralına uyuyor.`,
+       `D hedefleri: yüzde 127,2 için ${f2(h1)}, yüzde 161,8 için ${f2(h2)}. Fiyat hedef bölgesinde.`,
+       `Zaman: A'dan B'ye ${abSure} mum, C'den D'ye ${cdSure} mum${yakin(abSure, cdSure, 25) ? '. AB eşittir CD zaman kuralı tutuyor.' : '.'}`],
+      { 'Yüzde 127,2 hedefi': h1, 'Yüzde 161,8 hedefi': h2 });
   },
 };
 
