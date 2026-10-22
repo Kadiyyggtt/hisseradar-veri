@@ -114,3 +114,28 @@ export interface Tarayici {
   sart?: (ortam: Ortam, piyasa: 'BIST' | 'ABD') => boolean;
   tara: (s: Seriler, ortam: Ortam) => Eslesme | null;
 }
+
+/** Formasyon karnesi: ilk görüldüğü fiyat ve ilk yukarı hedef; sonradan hedefe değdi mi. */
+export interface SicilKayit {
+  sembol: string;
+  piyasa: 'BIST' | 'ABD';
+  taramaId: string;
+  giris: number;
+  hedef: number;
+  /** İlk görülme zamanı (Unix saniye). */
+  t: number;
+  sonuc?: 'ulasti' | 'ulasmadi';
+  bitis?: number;
+}
+
+export interface Sicil {
+  surum: 1;
+  uretildi: number;
+  sureGun: number;
+  /** Bir formasyonun oranı gösterilmeden önce gereken en az kapanmış kayıt sayısı. */
+  enAz: number;
+  acik: SicilKayit[];
+  kapali: SicilKayit[];
+  /** taramaId → kapanmış kayıt sayısı ve hedefe ulaşan sayısı. */
+  ozet: Record<string, { n: number; ulasan: number }>;
+}

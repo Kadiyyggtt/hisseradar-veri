@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import type { Eslesme, GrafikVerisi, Portfoy, TaramaSonucu } from './tipler';
 import { portfoyuIlerlet } from './portfoy';
+import { sicilIlerlet } from './sicil';
+import type { Sicil } from './tipler';
 import { ortamiOlc } from './ortam';
 import { TARAYICILAR } from './stratejiler';
 import { ABD, BIST } from './veri/evren';
@@ -116,6 +118,18 @@ async function main() {
     }
   } else if (oncekiPortfoy) {
     sonuc.portfoy = oncekiPortfoy;
+  }
+  // Karne (sicil.json): hata verirse taramanın geri kalanını bozmaz.
+  if (sinir === Infinity && !tekPiyasa) {
+    try {
+      const sicilYol = join(CIKTI, 'sicil.json');
+      const eski = existsSync(sicilYol) ? (JSON.parse(readFileSync(sicilYol, 'utf8')) as Sicil) : null;
+      const yeniSicil = sicilIlerlet(eski, sonuc.eslesmeler, fiyatlar, sonuc.uretildi);
+      writeFileSync(sicilYol, JSON.stringify(yeniSicil));
+      console.log(`Sicil: ${yeniSicil.acik.length} açık, ${yeniSicil.kapali.length} kapanmış kayıt.`);
+    } catch (hata) {
+      console.error('Sicil yazılamadı (tarama devam ediyor):', (hata as Error).message);
+    }
   }
   writeFileSync(oncekiYol, JSON.stringify(sonuc));
   writeFileSync(join(CIKTI, 'yeni.json'), JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni }));

@@ -5,6 +5,7 @@ import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { TARAYICILAR } from './stratejiler';
+import { ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
 import { donemAnahtari, portfoyuIlerlet, ucluSec } from './portfoy';
 
 /**
@@ -251,6 +252,25 @@ console.log('portföy');
   kontrol('aynı dönemde değer güncellenir', p2.hafta?.deger === 103.33 && p2.hafta?.anahtar === '2026-H42', String(p2.hafta?.deger));
   const p3 = portfoyuIlerlet(p2, liste, fiyatlar, pzt + 7 * 86400);
   kontrol('yeni haftada eski hafta geçmişe düşer, yeni 100 başlar', p3.gecmis.length === 1 && p3.gecmis[0].deger === 103.33 && p3.hafta?.deger === 100 && p3.ay?.deger === 103.33, `${p3.gecmis.length} ${p3.hafta?.deger} ${p3.ay?.deger}`);
+}
+
+console.log('sicil');
+{
+  const es = (sembol: string, fiyat: number, seviyeler?: Record<string, number>, yon: 'al' | 'sat' | 'izle' = 'al') =>
+    ({ sembol, piyasa: 'BIST' as const, taramaId: 'abcd-esnek', yon, guven: 70, periyot: '1d' as const, aciklama: [], seviyeler, t: 0, fiyat });
+  const T0 = 1_800_000_000;
+  kontrol('ilkHedef: fiyatın üstündeki en yakın', ilkHedef(es('A', 10, { 'Hedef 2': 12, 'Hedef 1': 11, 'Boyun': 15, 'Hedef eski': 9 })) === 11);
+  kontrol('ilkHedef: hedef yoksa null', ilkHedef(es('A', 10, { Boyun: 12 })) === null && ilkHedef(es('A', 10)) === null);
+  const s1 = sicilIlerlet(null, [es('A', 10, { 'Hedef 1': 11 }), es('B', 10), es('C', 10, { 'Hedef 1': 11 }, 'sat')], new Map(), T0);
+  kontrol('yalnız hedefli yükseliş kayda girer', s1.acik.length === 1 && s1.acik[0].sembol === 'A', String(s1.acik.length));
+  const s1b = sicilIlerlet(s1, [es('A', 10, { 'Hedef 1': 11 })], new Map([['BIST:A', 10.5]]), T0 + 3600);
+  kontrol('aynı eşleşme tekrar görülürse çift kayıt olmaz', s1b.acik.length === 1 && s1b.kapali.length === 0);
+  const s2 = sicilIlerlet(s1b, [], new Map([['BIST:A', 11.2]]), T0 + 2 * 86400);
+  kontrol('hedefe değen kayıt "ulaştı" olarak kapanır', s2.acik.length === 0 && s2.kapali[0]?.sonuc === 'ulasti' && s2.ozet['abcd-esnek']?.n === 1 && s2.ozet['abcd-esnek']?.ulasan === 1);
+  const s3 = sicilIlerlet(s1b, [], new Map([['BIST:A', 9]]), T0 + (SURE_GUN + 1) * 86400);
+  kontrol('süre dolunca "ulaşmadı" kapanır', s3.kapali[0]?.sonuc === 'ulasmadi' && s3.ozet['abcd-esnek']?.ulasan === 0);
+  const s4 = sicilIlerlet(s2, [es('A', 10, { 'Hedef 1': 11 })], new Map(), T0 + 3 * 86400);
+  kontrol('kapanmış kayıt hemen yeniden açılmaz', s4.acik.length === 0);
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);
