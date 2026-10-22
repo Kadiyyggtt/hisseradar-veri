@@ -5,6 +5,7 @@ import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { TARAYICILAR } from './stratejiler';
+import { bildirimMetni, TARAMA_ADLARI } from './bildirim-metin';
 import { ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
 import { donemAnahtari, portfoyuIlerlet, ucluSec } from './portfoy';
 
@@ -271,6 +272,20 @@ console.log('sicil');
   kontrol('süre dolunca "ulaşmadı" kapanır', s3.kapali[0]?.sonuc === 'ulasmadi' && s3.ozet['abcd-esnek']?.ulasan === 0);
   const s4 = sicilIlerlet(s2, [es('A', 10, { 'Hedef 1': 11 })], new Map(), T0 + 3 * 86400);
   kontrol('kapanmış kayıt hemen yeniden açılmaz', s4.acik.length === 0);
+}
+
+// BİLDİRİM METNİ: her tarayıcının adı var mı, cümle Kadir'in istediği biçimde mi.
+{
+  const adsiz = TARAYICILAR.filter((t) => !TARAMA_ADLARI[t.id]).map((t) => t.id);
+  kontrol('her tarayıcının bildirim adı var', adsiz.length === 0, adsiz.join(', '));
+  const tek = bildirimMetni('topuk-donusu', [{ sembol: 'THYAO', yon: 'al' }]);
+  kontrol('tek hisse: "X hissesi Y stratejisine uydu"', tek?.govde === 'THYAO hissesi Topuk Dönüşü stratejisine uydu. Yükseliş şartı sağlandı.', tek?.govde);
+  const cok = bildirimMetni('wolfe', [{ sembol: 'A', yon: 'al' }, { sembol: 'B', yon: 'al' }, { sembol: 'C', yon: 'sat' }]);
+  kontrol('çok hisse: sayı, semboller, düşüş eki', cok?.govde === '2 hisse Wolfe Dalgaları stratejisine uydu: A, B. Yükseliş şartı sağlandı. Ayrıca 1 hissede düşüş şartı var.', cok?.govde);
+  const yedi = bildirimMetni('qm', Array.from({ length: 7 }, (_, i) => ({ sembol: `H${i}`, yon: 'al' as const })));
+  kontrol('beşten fazlası "ve N hisse daha"', yedi?.govde.includes('ve 2 hisse daha') === true, yedi?.govde);
+  kontrol('yalnız izlemede ise bildirim yok', bildirimMetni('qm', [{ sembol: 'A', yon: 'izle' }]) === null);
+  kontrol('bilinmeyen konu kimliğiyle yazılır', bildirimMetni('yok-boyle', [{ sembol: 'A', yon: 'sat' }])?.govde.startsWith('A hissesi yok-boyle stratejisine uydu. Düşüş') === true);
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

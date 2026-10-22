@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { bildirimMetni } from './bildirim-metin';
 import type { Eslesme } from './tipler';
 
 /**
@@ -53,16 +54,21 @@ async function main() {
     return;
   }
   const anahtar = await erisimAnahtari(hesap);
-  // Konu başına tek bildirim: "3 hisse Topuk Dönüşü'ne uydu: THYAO, SISE, ..."
+  // Konu başına tek bildirim: "3 hisse Topuk Dönüşü stratejisine uydu: THYAO, SISE, EREGL."
   const konular = new Map<string, Eslesme[]>();
   for (const e of alSinyalleri) konular.set(e.taramaId, [...(konular.get(e.taramaId) ?? []), e]);
   for (const [konu, liste] of konular) {
-    const semboller = liste.slice(0, 5).map((e) => e.sembol).join(', ') + (liste.length > 5 ? ` +${liste.length - 5}` : '');
+    const metin = bildirimMetni(konu, liste);
+    if (!metin) continue;
     const govde = {
       message: {
         topic: konu,
-        notification: { title: 'HisseRadar', body: `${liste.length} hisse "${konu}" taramasına uydu: ${semboller}` },
+        notification: { title: metin.baslik, body: metin.govde },
         data: { taramaId: konu },
+        // Android: küçük simge ve renk uygulamanın manifestindeki varsayılanla aynı (plugins/with-bildirim-simgesi.js);
+        // aynı konunun yeni bildirimi eskisinin yerine geçer (tag).
+        android: { priority: 'high', notification: { icon: 'ic_bildirim', color: '#22B383', tag: konu } },
+        apns: { payload: { aps: { sound: 'default', 'thread-id': konu } } },
       },
     };
     const c = await fetch(`https://fcm.googleapis.com/v1/projects/${hesap.project_id}/messages:send`, {
