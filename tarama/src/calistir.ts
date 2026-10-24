@@ -1,13 +1,15 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Eslesme, GrafikVerisi, Portfoy, TaramaSonucu } from './tipler';
+import type { Eslesme, Gosterge, GrafikVerisi, HedefDosyasi, Portfoy, TaramaSonucu } from './tipler';
 import { portfoyuIlerlet } from './portfoy';
-import { sicilIlerlet } from './sicil';
+import { hedefeUlasanlar, sicilIlerlet } from './sicil';
 import type { Sicil } from './tipler';
+import { ema } from './gostergeler/ortalama';
+import { rsi } from './gostergeler/rsi';
 import { ortamiOlc } from './ortam';
 import { TARAYICILAR } from './stratejiler';
-import { ABD, BIST } from './veri/evren';
+import { ABD, BIST, HISSE_BILGI } from './veri/evren';
 import { serileriGetir } from './veri/getir';
 
 /**
@@ -23,6 +25,24 @@ import { serileriGetir } from './veri/getir';
 // npm betikleri proje kökünden çalışır.
 const KOK = process.cwd();
 const CIKTI = join(KOK, 'docs', 'tarama');
+
+const y2 = (n: number) => Math.round(n * 100) / 100;
+const y3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Son mumun gösterge değerleri; tam seriden. Yetersiz veride (yeni halka arz) null. */
+export function gostergeler(kapanis: number[]): Gosterge | null {
+  if (kapanis.length < 60) return null;
+  const son = kapanis.length - 1;
+  const r = rsi(kapanis, 14)[son];
+  const e12 = ema(kapanis, 12);
+  const e26 = ema(kapanis, 26);
+  const macd = e12.map((v, i) => v - e26[i]).filter(Number.isFinite);
+  const sinyal = ema(macd, 9)[macd.length - 1];
+  const e20 = ema(kapanis, 20)[son];
+  const e50 = ema(kapanis, 50)[son];
+  if (![r, macd[macd.length - 1], sinyal, e20, e50].every(Number.isFinite)) return null;
+  return { rsi: Math.round(r * 10) / 10, macd: y3(macd[macd.length - 1]), sinyal: y3(sinyal), ema20: y2(e20), ema50: y2(e50) };
+}
 
 async function main() {
   const sinir = Number(process.env.SINIR ?? 0) || Infinity;
@@ -54,11 +74,18 @@ async function main() {
         fiyatlar.set(`${is.piyasa}:${is.sembol}`, seriler['1d'][seriler['1d'].length - 1].k);
         {
           const g = seriler['1d'].slice(-60);
+          const bilgi = HISSE_BILGI[`${is.piyasa}:${is.sembol}`];
+          const gost = gostergeler(seriler['1d'].map((m) => m.k));
           grafik.seriler[`${is.piyasa}:${is.sembol}`] = {
             t0: g[0].t,
             t1: g[g.length - 1].t,
-            k: g.map((m) => Math.round(m.k * 100) / 100),
+            k: g.map((m) => y2(m.k)),
             h: g.map((m) => Math.round(m.h)),
+            a: g.map((m) => y2(m.a)),
+            y: g.map((m) => y2(m.y)),
+            d: g.map((m) => y2(m.d)),
+            ...(bilgi ? { ad: bilgi.ad, sektor: bilgi.sektor } : {}),
+            ...(gost ? { g: gost } : {}),
           };
         }
         for (const t of TARAYICILAR) {
@@ -126,7 +153,10 @@ async function main() {
       const eski = existsSync(sicilYol) ? (JSON.parse(readFileSync(sicilYol, 'utf8')) as Sicil) : null;
       const yeniSicil = sicilIlerlet(eski, sonuc.eslesmeler, fiyatlar, sonuc.uretildi);
       writeFileSync(sicilYol, JSON.stringify(yeniSicil));
-      console.log(`Sicil: ${yeniSicil.acik.length} açık, ${yeniSicil.kapali.length} kapanmış kayıt.`);
+      // Hedef bildirimi: bu koşuda hedefe ulaşan kayıtlar (takipteki hisse için konu bazlı mesaj).
+      const hedef: HedefDosyasi = { uretildi: sonuc.uretildi, ulasanlar: hedefeUlasanlar(yeniSicil, sonuc.uretildi, fiyatlar) };
+      writeFileSync(join(CIKTI, 'hedef.json'), JSON.stringify(hedef));
+      console.log(`Sicil: ${yeniSicil.acik.length} açık, ${yeniSicil.kapali.length} kapanmış kayıt; bu koşuda hedefe ulaşan ${hedef.ulasanlar.length}.`);
     } catch (hata) {
       console.error('Sicil yazılamadı (tarama devam ediyor):', (hata as Error).message);
     }

@@ -16,6 +16,8 @@ export const TARAMA_ADLARI: Record<string, string> = {
   'yukselen-dipler': 'Alçalan Tepeler, Yükselen Dipler',
 };
 
+import type { HedefUlasan } from './tipler';
+
 export interface BildirimMetni {
   baslik: string;
   govde: string;
@@ -38,4 +40,29 @@ export function bildirimMetni(konu: string, liste: { sembol: string; yon: 'al' |
   }
   const semboller = ana.slice(0, 5).map((e) => e.sembol).join(', ') + (ana.length > 5 ? ` ve ${ana.length - 5} hisse daha` : '');
   return { baslik: `${ana.length} hisse · ${ad}`, govde: `${ana.length} hisse ${ad} stratejisine uydu: ${semboller}. ${sart}${ek}` };
+}
+
+const fiyatYaz = (n: number, piyasa: 'BIST' | 'ABD') => `${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${piyasa === 'BIST' ? '₺' : '$'}`;
+
+/** Takipteki hissenin bildirim konusu: Firebase konu adı deseni [a-zA-Z0-9-_.~%]+ (BRK-B uyar). */
+export function hedefKonusu(piyasa: 'BIST' | 'ABD', sembol: string): string {
+  return `hedef-${piyasa}-${sembol}`;
+}
+
+/**
+ * "THYAO 312,50 ₺ ile Topuk Dönüşü hedefine (310,00 ₺) ulaştı." Aynı hissenin
+ * birden çok formasyonu aynı koşuda hedefe değerse tek bildirim, formasyon adları
+ * virgülle. Getiri, en eski kaydın giriş fiyatından.
+ */
+export function hedefBildirimMetni(liste: HedefUlasan[]): BildirimMetni | null {
+  if (!liste.length) return null;
+  const { sembol, piyasa, fiyat } = liste[0];
+  const adlar = [...new Set(liste.map((k) => TARAMA_ADLARI[k.taramaId] ?? k.taramaId))];
+  const enEski = liste.reduce((a, b) => (b.t < a.t ? b : a));
+  const getiri = enEski.giris > 0 ? fiyat / enEski.giris - 1 : 0;
+  const yuzde = `${getiri >= 0 ? '+' : ''}%${(getiri * 100).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+  const govde = adlar.length === 1
+    ? `${sembol} ${fiyatYaz(fiyat, piyasa)} ile ${adlar[0]} hedefine (${fiyatYaz(enEski.hedef, piyasa)}) ulaştı. Formasyon görüldüğünden bu yana ${yuzde}.`
+    : `${sembol} ${fiyatYaz(fiyat, piyasa)} ile ${adlar.length} formasyonun hedefine ulaştı: ${adlar.join(', ')}. Formasyon görüldüğünden bu yana ${yuzde}.`;
+  return { baslik: `${sembol} · Hedef 1'e ulaştı`, govde };
 }

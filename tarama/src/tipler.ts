@@ -86,7 +86,22 @@ export interface Portfoy {
   gecmis: PortfoyKapanan[];
 }
 
-/** Grafik verisi: sembol başına son 60 günlük kapanış ve hacim; uygulama çizgi grafiği buradan çizer. */
+/** Son mumdaki gösterge değerleri; tarayıcı tam (3 yıllık) seriden hesaplar, telefonda hesap yapılmaz. */
+export interface Gosterge {
+  /** RSI 14, 0-100. */
+  rsi: number;
+  /** MACD (12, 26) ve 9'luk sinyal çizgisi, fiyat biriminde. */
+  macd: number;
+  sinyal: number;
+  ema20: number;
+  ema50: number;
+}
+
+/**
+ * Grafik verisi: sembol başına son 60 günlük mumlar. `k` ve `h` her zaman var
+ * (eski uygulama yalnız bunları okur); açılış/yüksek/düşük, ad, sektör ve
+ * göstergeler sonradan eklendi, hepsi isteğe bağlı.
+ */
 export interface GrafikSerisi {
   /** İlk mumun unix saniyesi; sonrakiler iş günü sırasıyla. */
   t0: number;
@@ -94,6 +109,13 @@ export interface GrafikSerisi {
   t1: number;
   k: number[];
   h: number[];
+  a?: number[];
+  y?: number[];
+  d?: number[];
+  /** Kısa Türkçe şirket adı ve sektör (veri/evren.ts). */
+  ad?: string;
+  sektor?: string;
+  g?: Gosterge;
 }
 export type GrafikVerisi = { surum: 1; uretildi: number; seriler: Record<string, GrafikSerisi> };
 
@@ -138,4 +160,14 @@ export interface Sicil {
   kapali: SicilKayit[];
   /** taramaId → kapanmış kayıt sayısı ve hedefe ulaşan sayısı. */
   ozet: Record<string, { n: number; ulasan: number }>;
+}
+
+/** Hedefe ulaşan kayıt: sicilde bu koşuda "ulaştı" diye kapanan kayıt + o anki fiyat. Takip bildirimi bundan gider. */
+export interface HedefUlasan extends SicilKayit {
+  fiyat: number;
+}
+
+export interface HedefDosyasi {
+  uretildi: number;
+  ulasanlar: HedefUlasan[];
 }

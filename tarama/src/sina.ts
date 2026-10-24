@@ -1,12 +1,14 @@
-import type { Mum, Ortam, Seriler } from './tipler';
+import type { Eslesme, Mum, Ortam, Seriler } from './tipler';
 import { aylik, dortSaatlik, haftalik } from './gostergeler/periyot';
 import { ema } from './gostergeler/ortalama';
 import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { TARAYICILAR } from './stratejiler';
-import { bildirimMetni, TARAMA_ADLARI } from './bildirim-metin';
-import { ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
+import { bildirimMetni, hedefBildirimMetni, hedefKonusu, TARAMA_ADLARI } from './bildirim-metin';
+import { hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
+import { ABD_HISSELER, BIST_HISSELER } from './veri/evren';
+import { gostergeler } from './calistir';
 import { donemAnahtari, portfoyuIlerlet, ucluSec } from './portfoy';
 
 /**
@@ -286,6 +288,61 @@ console.log('sicil');
   kontrol('beşten fazlası "ve N hisse daha"', yedi?.govde.includes('ve 2 hisse daha') === true, yedi?.govde);
   kontrol('yalnız izlemede ise bildirim yok', bildirimMetni('qm', [{ sembol: 'A', yon: 'izle' }]) === null);
   kontrol('bilinmeyen konu kimliğiyle yazılır', bildirimMetni('yok-boyle', [{ sembol: 'A', yon: 'sat' }])?.govde.startsWith('A hissesi yok-boyle stratejisine uydu. Düşüş') === true);
+}
+
+// HEDEFE ULAŞTI: yalnız bu koşuda kapanan "ulaştı" kayıtları, o anki fiyatla; metin ve konu adı.
+{
+  const T0 = 1_700_000_000;
+  const es = (sembol: string, fiyat: number, seviyeler: Record<string, number>, taramaId = 'topuk-donusu'): Eslesme =>
+    ({ sembol, piyasa: 'BIST', taramaId, yon: 'al', guven: 100, periyot: '1d', aciklama: [], seviyeler, t: T0, fiyat });
+  const s1 = sicilIlerlet(null, [es('THYAO', 300, { 'Hedef 1': 310 }), es('THYAO', 300, { 'Hedef 1': 312 }, 'bayrak'), es('SISE', 50, { 'Hedef 1': 55 })], new Map(), T0);
+  const T1 = T0 + 2 * 86400;
+  const fiyatlar = new Map([['BIST:THYAO', 312.5], ['BIST:SISE', 51]]);
+  const s2 = sicilIlerlet(s1, [], fiyatlar, T1);
+  const u = hedefeUlasanlar(s2, T1, fiyatlar);
+  kontrol('hedefe ulaşan: THYAO iki formasyon, SISE yok', u.length === 2 && u.every((x) => x.sembol === 'THYAO' && x.fiyat === 312.5), JSON.stringify(u));
+  kontrol('başka zaman damgasıyla sorulunca boş', hedefeUlasanlar(s2, T1 + 1, fiyatlar).length === 0);
+  const s3 = sicilIlerlet(s2, [], new Map([['BIST:SISE', 49]]), T0 + (SURE_GUN + 1) * 86400);
+  kontrol('"ulaşmadı" kapanış hedef listesine girmez', hedefeUlasanlar(s3, T0 + (SURE_GUN + 1) * 86400, new Map()).length === 0);
+  const m2 = hedefBildirimMetni(u);
+  kontrol('iki formasyon tek bildirim', m2?.baslik === "THYAO · Hedef 1'e ulaştı" && m2.govde === 'THYAO 312,50 ₺ ile 2 formasyonun hedefine ulaştı: Topuk Dönüşü, Bayrak ve Flama. Formasyon görüldüğünden bu yana +%4,2.', m2?.govde);
+  const m1 = hedefBildirimMetni([u[0]]);
+  kontrol('tek formasyon: hedef fiyatı yazılır', m1?.govde === 'THYAO 312,50 ₺ ile Topuk Dönüşü hedefine (310,00 ₺) ulaştı. Formasyon görüldüğünden bu yana +%4,2.', m1?.govde);
+  const abd = hedefBildirimMetni([{ sembol: 'BRK-B', piyasa: 'ABD', taramaId: 'qm', giris: 400, hedef: 420, t: T0, sonuc: 'ulasti', bitis: T1, fiyat: 421 }]);
+  kontrol('ABD dolar işareti', abd?.govde.includes('421,00 $') === true && abd.govde.includes('(420,00 $)'), abd?.govde);
+  kontrol('boş listede bildirim yok', hedefBildirimMetni([]) === null);
+  const KONU = /^[a-zA-Z0-9\-_.~%]+$/;
+  kontrol('konu adı Firebase desenine uyar (BRK-B dahil)', KONU.test(hedefKonusu('ABD', 'BRK-B')) && hedefKonusu('BIST', 'THYAO') === 'hedef-BIST-THYAO');
+}
+
+// EVREN: üretilmiş listede tekrar yok, her hissenin adı ve sektörü var, boyut makul.
+{
+  const hepsi = [...BIST_HISSELER.map((h) => `BIST:${h.kod}`), ...ABD_HISSELER.map((h) => `ABD:${h.kod}`)];
+  const tekrar = hepsi.filter((k, i) => hepsi.indexOf(k) !== i);
+  kontrol('evrende tekrar yok', tekrar.length === 0, tekrar.join(', '));
+  kontrol('BIST evreni en az 250 hisse', BIST_HISSELER.length >= 250, String(BIST_HISSELER.length));
+  kontrol('ABD evreni 100+', ABD_HISSELER.length >= 100, String(ABD_HISSELER.length));
+  const bozuk = [...BIST_HISSELER, ...ABD_HISSELER].filter((h) => !/^[A-Z0-9-]{1,6}$/.test(h.kod) || h.ad.trim().length < 2 || !h.sektor);
+  kontrol('her hissenin kodu, adı ve sektörü var', bozuk.length === 0, bozuk.map((h) => h.kod).join(', '));
+  const diger = [...BIST_HISSELER, ...ABD_HISSELER].filter((h) => h.sektor === 'Diğer').length;
+  kontrol('"Diğer" sektörü %5\'in altında', diger * 20 < hepsi.length, String(diger));
+  kontrol('Firebase konu deseni bütün semboller için geçerli', hepsi.every((k) => /^[a-zA-Z0-9\-_.~%]+$/.test(hedefKonusu('BIST', k.split(':')[1]))));
+}
+
+// GÖSTERGELER: bilinen seriden beklenen değerler, kısa seride null.
+{
+  kontrol('kısa seride gösterge yok', gostergeler(dogrusal(30, 100, 110)) === null);
+  // Doğrusal seride MACD sabit kalır ve sinyale eşitlenir; ivmelenen (bileşik) yükselişte sinyalin üstünde kalır.
+  const bilesik = (n: number, oran: number) => Array.from({ length: n }, (_, i) => 100 * Math.pow(oran, i));
+  const yukselen = gostergeler(bilesik(120, 1.01));
+  kontrol('ivmelenen yükselişte RSI 100, MACD sinyalin üstünde, EMA20 > EMA50', !!yukselen && yukselen.rsi === 100 && yukselen.macd > yukselen.sinyal && yukselen.ema20 > yukselen.ema50, JSON.stringify(yukselen));
+  // Hızlanan düşüş (160 - i²/120): MACD gittikçe daha negatif, sinyalin altında kalır. (Üssel çürümede |MACD| küçülür, sinyalin üstüne çıkar.)
+  const dusen = gostergeler(Array.from({ length: 120 }, (_, i) => 160 - (i * i) / 120));
+  kontrol('hızlanan düşüşte RSI 0, MACD negatif ve sinyalin altında', !!dusen && dusen.rsi === 0 && dusen.macd < 0 && dusen.macd < dusen.sinyal && dusen.ema20 < dusen.ema50, JSON.stringify(dusen));
+  const duz = gostergeler(dogrusal(120, 100, 160));
+  kontrol('doğrusal yükselişte MACD pozitif', !!duz && duz.macd > 0 && duz.rsi === 100, JSON.stringify(duz));
+  const sabitSeri = gostergeler(sabit(120, 50));
+  kontrol('sabit seride RSI 100 kuralı (kayıp sıfır) ve MACD 0', !!sabitSeri && sabitSeri.macd === 0 && sabitSeri.ema20 === 50 && sabitSeri.ema50 === 50, JSON.stringify(sabitSeri));
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

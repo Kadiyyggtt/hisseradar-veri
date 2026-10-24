@@ -1,4 +1,4 @@
-import type { Eslesme, Sicil, SicilKayit } from './tipler';
+import type { Eslesme, HedefUlasan, Sicil, SicilKayit } from './tipler';
 
 /**
  * SİCİL — her formasyonun "ileriye dönük" karnesi. Geçmişe bakıp hesaplamıyoruz:
@@ -53,4 +53,14 @@ export function sicilIlerlet(onceki: Sicil | null, eslesmeler: Eslesme[], fiyatl
     if (k.sonuc === 'ulasti') o.ulasan++;
   }
   return { surum: 1, uretildi: simdi, sureGun: SURE_GUN, enAz: EN_AZ_SONUC, acik, kapali: son, ozet };
+}
+
+/**
+ * Bu koşuda "ulaştı" diye kapanan kayıtlar (bitiş zamanı = şimdi) ve o anki fiyat.
+ * Hedef bildirimi yalnız bunlar için gider; önceki koşularda kapananlar yeniden bildirilmez.
+ */
+export function hedefeUlasanlar(sicil: Sicil, simdi: number, fiyatlar: Map<string, number>): HedefUlasan[] {
+  return sicil.kapali
+    .filter((k) => k.sonuc === 'ulasti' && k.bitis === simdi)
+    .map((k) => ({ ...k, fiyat: fiyatlar.get(`${k.piyasa}:${k.sembol}`) ?? k.hedef }));
 }
