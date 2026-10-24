@@ -46,4 +46,9 @@ jobs:
           git add docs/tarama
           git diff --cached --quiet && echo "değişiklik yok" && exit 0
           git commit -m "Tarama sonucu $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git push
+          # Koşu sürerken main'e başka commit gelmiş olabilir (24 Ekim: push reddedildi, sonuç yayınlanmadı): üç kez çekip yeniden dene.
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin main && git push && exit 0
+            sleep 10
+          done
+          echo "sonuç gönderilemedi" && exit 1
