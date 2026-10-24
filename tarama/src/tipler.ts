@@ -235,7 +235,7 @@ export interface HisseSicili {
   n: number;
   u: number;
   formasyon: Record<string, { n: number; u: number }>;
-  /** Son kayıtlar, en yeni başta (en çok 8). */
+  /** Son kayıtlar, en yeni başta (en çok 6). */
   son: HisseSicilKaydi[];
 }
 export interface HisseSicilDosyasi {

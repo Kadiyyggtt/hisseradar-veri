@@ -6,7 +6,7 @@ import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { TARAYICILAR } from './stratejiler';
 import { bildirimMetni, haftalikOzet, hedefBildirimMetni, hedefKonusu, sabahBrifingi, TARAMA_ADLARI } from './bildirim-metin';
-import { hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
+import { EN_AZ_HEDEF_ORANI, hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
 import { ABD_HISSELER, BIST_HISSELER } from './veri/evren';
 import { gostergeler } from './calistir';
 import { EN_COK_GUN, gecmisIlerlet, gunBasi } from './gecmis';
@@ -505,6 +505,9 @@ console.log('sicil');
 
 // HİSSE SİCİLİ: geçmişte gün gün yürütme, kümeleme, sonuç ve süre.
 {
+  const yakinHedef: Eslesme = { sembol: 'A', piyasa: 'BIST', taramaId: 'abcd-esnek', yon: 'al', guven: 60, periyot: '1d', aciklama: [], seviyeler: { 'Hedef 1': 10.05, 'Hedef 2': 10.4 }, t: 0, fiyat: 10 };
+  kontrol('ilkHedef yüzde 1,5\'ten yakını atlar, sonrakini alır', ilkHedef(yakinHedef) === 10.4 && EN_AZ_HEDEF_ORANI === 1.015);
+  kontrol('ilkHedef hepsi yakınsa null', ilkHedef({ ...yakinHedef, seviyeler: { 'Hedef 1': 10.1 } }) === null);
   kontrol('günlük tarayıcı listesi makul (20-35)', GUNLUK_TARAYICILAR.length >= 20 && GUNLUK_TARAYICILAR.length <= 35, String(GUNLUK_TARAYICILAR.length));
   // 260 yatay + bayrak (direk 80→100, bez 7 mum, kırılım 101) + hedefe (direk boyu 20 → 121) 10 günde ulaşan yükseliş + 40 yatay.
   const b = [...sabit(260, 80), ...dogrusal(10, 80, 100), ...dogrusal(7, 100, 96), 101, ...dogrusal(10, 102, 123), ...sabit(40, 123)];

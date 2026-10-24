@@ -50,13 +50,13 @@ export function hisseSicili(sembol: string, piyasa: 'BIST' | 'ABD', gunluk: Mum[
         if (gunluk[j].y >= hedef) { sonuc = 'ulasti'; gun = j - son; break; }
       }
       if (sonuc === 'acik' && gunluk.length - 1 - son >= sureGun) sonuc = 'ulasmadi';
-      kayitlar.push({ taramaId: t.id, t: g[son].t, giris: e.fiyat, hedef: Math.round(hedef * 100) / 100, sonuc, ...(gun !== undefined ? { gun } : {}) });
+      kayitlar.push({ taramaId: t.id, t: g[son].t, giris: Math.round(e.fiyat * 100) / 100, hedef: Math.round(hedef * 100) / 100, sonuc, ...(gun !== undefined ? { gun } : {}) });
     }
   }
   const kapali = kayitlar.filter((k) => k.sonuc !== 'acik');
   const formasyon: HisseSicili['formasyon'] = {};
   for (const k of kapali) { const o = (formasyon[k.taramaId] ??= { n: 0, u: 0 }); o.n++; if (k.sonuc === 'ulasti') o.u++; }
-  return { n: kapali.length, u: kapali.filter((k) => k.sonuc === 'ulasti').length, formasyon, son: kayitlar.slice(-8).reverse() };
+  return { n: kapali.length, u: kapali.filter((k) => k.sonuc === 'ulasti').length, formasyon, son: kayitlar.slice(-6).reverse() };
 }
 
 async function main() {

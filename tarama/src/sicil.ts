@@ -10,11 +10,14 @@ export const SURE_GUN = 30;
 export const EN_AZ_SONUC = 5;
 const GUN = 86400;
 
-/** Eşleşmenin fiyatın üstündeki en yakın "Hedef…" seviyesi; yoksa null. */
+/** Karneye girecek hedef fiyattan en az bu kadar uzak olmalı; daha yakını "ulaştı" sayımını şişirir (abcd-esnek yüzde 0,3'lük hedefle 10/10 çıkıyordu). */
+export const EN_AZ_HEDEF_ORANI = 1.015;
+
+/** Eşleşmenin fiyatın üstündeki en yakın anlamlı "Hedef…" seviyesi; yoksa null. */
 export function ilkHedef(e: Eslesme): number | null {
   if (!e.seviyeler) return null;
   const ust = Object.entries(e.seviyeler)
-    .filter(([ad, v]) => /hedef/i.test(ad) && Number.isFinite(v) && v > e.fiyat)
+    .filter(([ad, v]) => /hedef/i.test(ad) && Number.isFinite(v) && v >= e.fiyat * EN_AZ_HEDEF_ORANI)
     .map(([, v]) => v)
     .sort((a, b) => a - b);
   return ust.length ? ust[0] : null;
