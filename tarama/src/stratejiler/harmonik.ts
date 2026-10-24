@@ -1,6 +1,6 @@
 import type { Seriler, Tarayici } from '../tipler';
 import { pivotlar } from '../gostergeler/pivot';
-import { eslesme, f2 } from './ortak';
+import { bacaklar, cizgi, eslesme, f2, nokta } from './ortak';
 
 /**
  * HARMONİK FORMASYONLAR — Gartley, Bat, Butterfly. Beş pivot: X, A, B, C, D.
@@ -78,7 +78,11 @@ function harmonikTara(s: Seriler, kalip: Kalip) {
      `B noktası XA bacağının ${yuzdeYaz(bOran)}${yuzdeEki(bOran)}ni geri aldı; C noktası AB'nin ${yuzdeYaz(cOran)}${yuzdeEki(cOran)}ni. İkisi de ${kalip.ad} oranlarında.`,
      `D noktası XA'nın ${yuzdeYaz(dOran)}${yuzdeEki(dOran)}nde: dönüş bölgesi ${f2(dBolgeAlt)} ile ${f2(dBolgeUst)} arası${kalip.tasar ? ", X'in ötesinde" : ''}.`,
      donus ? `Son mum ${yukselis ? 'yukarı' : 'aşağı'} döndü. ${yukselis ? 'Alış' : 'Satış'} şartı sağlandı; stop ${f2(stop)}.` : 'Dönüş mumu bekleniyor; bölgeye gelmek tek başına giriş değildir.'],
-    { 'D bölgesi': uc, 'Hedef 1 (AD %38,2)': hedef1, 'Hedef 2 (AD %61,8)': hedef2, [kalip.tasar ? 'Stop (D ötesi)' : 'Stop (X)']: stop });
+    { 'D bölgesi': uc, 'Hedef 1 (AD %38,2)': hedef1, 'Hedef 2 (AD %61,8)': hedef2, [kalip.tasar ? 'Stop (D ötesi)' : 'Stop (X)']: stop },
+    (() => {
+      const n = [nokta(m, X.i, X.fiyat, 'X'), nokta(m, A.i, A.fiyat, 'A'), nokta(m, B.i, B.fiyat, 'B'), nokta(m, C.i, C.fiyat, 'C'), nokta(m, D.i, uc, 'D')];
+      return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(n[0], n[2]), cizgi(n[2], n[4])] };
+    })());
 }
 
 /** "yüzde 61,8'ini" için ek: oran yüzdesinin okunuşuna göre. Basit tutuldu: ondalıklı sayılar "-ini", tam onlarda "-sini/-ünü" vb. */

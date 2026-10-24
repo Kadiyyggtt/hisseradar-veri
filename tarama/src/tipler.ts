@@ -29,6 +29,28 @@ export interface Seriler {
 
 export type Yon = 'al' | 'sat' | 'izle';
 
+/**
+ * GRAFİK ÜSTÜ ÇİZİM — formasyonun noktaları ve çizgileri, uygulamanın 60 günlük
+ * mum grafiğine oturtulur. `g` = son mumdan kaç mum geri (0 = son mum); grafik.json
+ * aynı koşuda üretildiği için indeks birebir tutar. Yalnız günlük eşleşmelerde.
+ */
+export interface CizimNokta {
+  g: number;
+  fiyat: number;
+  /** Kısa etiket: X, A, B, C, D, 1-5, SO, B, SA, Boyun… */
+  ad: string;
+}
+export interface CizimCizgi {
+  a: CizimNokta;
+  b: CizimNokta;
+  /** 'boyun' düz, 'trend' kesikli, 'bacak' noktaları birleştiren ince çizgi. */
+  tur: 'boyun' | 'trend' | 'bacak';
+}
+export interface EslesmeCizimi {
+  noktalar?: CizimNokta[];
+  cizgiler?: CizimCizgi[];
+}
+
 export interface Eslesme {
   sembol: string;
   piyasa: 'BIST' | 'ABD';
@@ -45,6 +67,8 @@ export interface Eslesme {
   t: number;
   /** Son kapanış. */
   fiyat: number;
+  /** Grafik üstü çizim (noktalar, çizgiler); yoksa yalnız seviyeler çizilir. */
+  cizim?: EslesmeCizimi;
 }
 
 export interface Ortam {

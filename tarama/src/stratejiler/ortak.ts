@@ -1,4 +1,4 @@
-import type { Eslesme, Periyot, Seriler, Yon } from '../tipler';
+import type { CizimCizgi, CizimNokta, Eslesme, EslesmeCizimi, Mum, Periyot, Seriler, Yon } from '../tipler';
 
 /** Eşleşme nesnesini tek yerden kur; kartın beklediği alanlar eksik kalmasın. */
 export function eslesme(
@@ -9,10 +9,12 @@ export function eslesme(
   guven: number,
   aciklama: string[],
   seviyeler?: Record<string, number>,
+  cizim?: EslesmeCizimi,
 ): Eslesme {
   const m = s[periyot];
   const son = m[m.length - 1];
   return {
+    ...(cizim ? { cizim } : {}),
     sembol: s.sembol,
     piyasa: s.piyasa,
     taramaId,
@@ -55,4 +57,20 @@ export function iyelikEki(n: number): string {
   const sonUnlu = sozcuk.match(/[aeıioöuü](?=[^aeıioöuü]*$)/)?.[0] ?? 'i';
   const ek = 'ıi'.includes(sonUnlu) || 'ae'.includes(sonUnlu) ? ('aı'.includes(sonUnlu) ? 'ı' : 'i') : ('ou'.includes(sonUnlu) ? 'u' : 'ü');
   return (unluyleBitiyor ? "'s" : "'") + ek;
+}
+
+/** Çizim noktası: mum sırası i → son mumdan geriye sayım. Fiyat iki ondalığa yuvarlanır. */
+export function nokta(m: Mum[], i: number, fiyat: number, ad: string): CizimNokta {
+  return { g: Math.max(0, m.length - 1 - Math.round(i)), fiyat: Math.round(fiyat * 100) / 100, ad };
+}
+
+export function cizgi(a: CizimNokta, b: CizimNokta, tur: CizimCizgi['tur'] = 'trend'): CizimCizgi {
+  return { a, b, tur };
+}
+
+/** Ardışık noktaları bacak çizgileriyle bağla (X-A-B-C-D, 1-2-3-4-5). */
+export function bacaklar(n: CizimNokta[]): CizimCizgi[] {
+  const out: CizimCizgi[] = [];
+  for (let i = 1; i < n.length; i++) out.push(cizgi(n[i - 1], n[i], 'bacak'));
+  return out;
 }

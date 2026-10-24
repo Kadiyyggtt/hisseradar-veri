@@ -50,6 +50,16 @@ function seri(gunluk: Mum[], sembol = 'TEST'): Seriler {
   return { sembol, piyasa: 'BIST', '1h': saatlik, '4h': dortSaatlik(saatlik), '1d': gunluk, '1w': haftalik(gunluk), '1mo': aylik(gunluk) };
 }
 
+/** Grafik üstü çizim geçerli mi: g tam sayı ve ≥ 0, fiyat sonlu, çizgi uçları da öyle. */
+function cizimKontrol(ad: string, e: Eslesme | null) {
+  const c = e?.cizim;
+  kontrol(`${ad}: çizim var`, !!c && ((c.noktalar?.length ?? 0) > 0 || (c.cizgiler?.length ?? 0) > 0));
+  if (!c) return;
+  const n = [...(c.noktalar ?? []), ...(c.cizgiler ?? []).flatMap((l) => [l.a, l.b])];
+  kontrol(`${ad}: çizim noktaları geçerli`, n.every((q) => Number.isInteger(q.g) && q.g >= 0 && Number.isFinite(q.fiyat) && typeof q.ad === 'string'), JSON.stringify(n.slice(0, 3)));
+  kontrol(`${ad}: çizim 160 mumu aşmıyor`, n.every((q) => q.g <= 160), String(Math.max(...n.map((q) => q.g))));
+}
+
 const tarayici = (id: string) => {
   const t = TARAYICILAR.find((x) => x.id === id);
   if (!t) throw new Error(`tarayıcı yok: ${id}`);
@@ -184,6 +194,7 @@ console.log('sekiller: ucgenler / dikdortgen / bayrak / fincan-kulp / kama');
   const hu = [...sabit(u.length - 1, 1000), 2200];
   const eu = tarayici('ucgenler').tara(seri(mumla(u, hu, 0.003)), ORTAM);
   kontrol('yükselen üçgen kırılımı uymalı', eu !== null && eu.yon === 'al', eu ? eu.yon + ' ' + eu.aciklama[0] : 'null');
+  cizimKontrol('üçgen', eu);
   kontrol('üçgen: düz trendde uymamalı', tarayici('ucgenler').tara(seri(mumla(dogrusal(120, 50, 150))), ORTAM) === null);
   // Dikdörtgen: 90-100 arasında 6 tur, son mum 102.
   const d: number[] = [...sabit(30, 95)];
@@ -191,22 +202,26 @@ console.log('sekiller: ucgenler / dikdortgen / bayrak / fincan-kulp / kama');
   d.push(102);
   const ed = tarayici('dikdortgen').tara(seri(mumla(d, [...sabit(d.length - 1, 1000), 2000], 0.003)), ORTAM);
   kontrol('dikdörtgen kırılımı uymalı', ed !== null && ed.yon === 'al', ed ? ed.yon : 'null');
+  cizimKontrol('dikdörtgen', ed);
   // Bayrak: 10 mumda 80→100, 7 mum 100→96 bez, son mum 101.
   const b = [...sabit(50, 80), ...dogrusal(10, 80, 100), ...dogrusal(7, 100, 96), 101];
   const eb = tarayici('bayrak').tara(seri(mumla(b, [...sabit(b.length - 1, 1000), 1800], 0.004)), ORTAM);
   kontrol('bayrak kırılımı uymalı', eb !== null && eb.yon === 'al', eb ? eb.yon : 'null');
+  cizimKontrol('bayrak', eb);
   // Fincan-kulp: 60 mumluk U (100→75→100), 8 mumluk kulp 100→95, son mum 102.
   const fk: number[] = [...sabit(40, 100)];
   for (let t = 0; t < 60; t++) fk.push(100 - 25 * Math.sin((Math.PI * t) / 59));
   fk.push(...dogrusal(8, 100, 95), 102);
   const ef = tarayici('fincan-kulp').tara(seri(mumla(fk, [...sabit(fk.length - 1, 1000), 1800], 0.003)), ORTAM);
   kontrol('fincan-kulp boyun kırılımı uymalı', ef !== null && ef.yon === 'al', ef ? ef.yon + ' ' + ef.aciklama[0] : 'null');
+  cizimKontrol('fincan-kulp', ef);
   // Alçalan kama: tepeler 100→90, dipler 92→88 (yakınsıyor), son mum üst çizgiyi kırar.
   const ka: number[] = [...sabit(30, 100)];
   for (let t = 0; t < 6; t++) ka.push(...dogrusal(5, 100 - t * 2, 92 - t * 0.8), ...dogrusal(5, 92 - t * 0.8, 100 - (t + 1) * 2));
   ka.push(96);
   const ek = tarayici('kama').tara(seri(mumla(ka, undefined, 0.003)), ORTAM);
   kontrol('alçalan kama kırılımı uymalı', ek !== null && ek.yon === 'al', ek ? ek.yon + ' ' + ek.aciklama[0] : 'null');
+  cizimKontrol('kama', ek);
   for (const id of ['bes-dalga', 'abcd-klasik']) {
     let ok = true;
     try { tarayici(id).tara(seri(mumla(dalga(400, 100, 15, 90))), ORTAM); } catch (e) { ok = false; console.error(e); }
@@ -226,6 +241,8 @@ console.log('harmonik: gartley / bat / butterfly');
   const g = tarayici('gartley').tara(harmonik(0.618, 0.618, 0.786), ORTAM);
   kontrol('gartley: B 0,618 ve D 0,786 uymalı, yön al', g !== null && g.yon === 'al', g ? g.yon + ' ' + g.aciklama.join(' | ') : 'null');
   kontrol('gartley: stop X seviyesi, hedefler D üstünde', !!g?.seviyeler && Math.abs(g.seviyeler['Stop (X)'] - 100) < 1 && g.seviyeler['Hedef 1 (AD %38,2)'] > g.seviyeler['D bölgesi']);
+  cizimKontrol('gartley', g);
+  kontrol('gartley: beş nokta X A B C D', g?.cizim?.noktalar?.map((q) => q.ad).join('') === 'XABCD' && (g?.cizim?.noktalar?.[0].g ?? 0) > (g?.cizim?.noktalar?.[4].g ?? 0), g?.cizim?.noktalar?.map((q) => q.ad + q.g).join(','));
   const b = tarayici('bat').tara(harmonik(0.45, 0.618, 0.886), ORTAM);
   kontrol('bat: B 0,45 ve D 0,886 uymalı', b !== null && b.yon === 'al', b ? b.yon : 'null');
   const bf = tarayici('butterfly').tara(harmonik(0.786, 0.618, 1.272), ORTAM);
@@ -287,6 +304,7 @@ console.log('ters-fincan-kulp / uclu-tepe-dip');
   const et = tarayici('ters-fincan-kulp').tara(seri(mumla(tf, [...sabit(tf.length - 1, 1000), 1800], 0.003)), ORTAM);
   kontrol('ters fincan kulp boyun kırılımı → sat', et !== null && et.yon === 'sat', et ? et.yon + ' ' + et.aciklama[0] : 'null');
   kontrol('ters fincan: hedefler boynun altında, stop kulp tepesi', !!et?.seviyeler && et.seviyeler['Hedef (bir boy aşağı)'] < et.seviyeler.Boyun && et.seviyeler['Stop (kulp tepesi)'] > et.seviyeler.Boyun);
+  cizimKontrol('ters fincan', et);
   const fk: number[] = [...sabit(40, 100)];
   for (let t = 0; t < 60; t++) fk.push(100 - 25 * Math.sin((Math.PI * t) / 59));
   fk.push(...dogrusal(8, 100, 95), 102);
@@ -295,6 +313,8 @@ console.log('ters-fincan-kulp / uclu-tepe-dip');
   const ud = [...sabit(30, 95), ...dogrusal(8, 95, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(6, 90, 99), 102];
   const eu = tarayici('uclu-tepe-dip').tara(seri(mumla(ud, undefined, 0.003)), ORTAM);
   kontrol('üçlü dip boyun kırılımı → al', eu !== null && eu.yon === 'al', eu ? eu.yon + ' ' + eu.aciklama[0] : 'null');
+  cizimKontrol('üçlü dip', eu);
+  kontrol('üçlü dip: boyun çizgisi son muma kadar', eu?.cizim?.cizgiler?.some((l) => l.tur === 'boyun' && l.b.g === 0) === true);
   const ut = [...sabit(30, 95), ...dogrusal(8, 95, 100), ...dogrusal(8, 100, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(8, 90, 100), ...dogrusal(6, 100, 91), 88];
   const eut = tarayici('uclu-tepe-dip').tara(seri(mumla(ut, undefined, 0.003)), ORTAM);
   kontrol('üçlü tepe boyun kırılımı → sat', eut !== null && eut.yon === 'sat', eut ? eut.yon : 'null');

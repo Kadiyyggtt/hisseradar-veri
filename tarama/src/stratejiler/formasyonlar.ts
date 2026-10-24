@@ -1,7 +1,7 @@
 import type { Periyot, Seriler, Tarayici } from '../tipler';
 import { rsi } from '../gostergeler/rsi';
 import { egim, geriAlma, hacimOrt, pivotlar, yakin } from '../gostergeler/pivot';
-import { eslesme, f2, iyelikEki, kapanislar } from './ortak';
+import { bacaklar, cizgi, eslesme, f2, iyelikEki, kapanislar, nokta } from './ortak';
 
 /**
  * 2.14 — TOPUK DÖNÜŞÜ. Şartlar:
@@ -63,7 +63,8 @@ function topukDonusuTara(s: Seriler, periyot: Periyot): ReturnType<Tarayici['tar
       `RSI ${r[dipI].toFixed(0)} değerinden ${r[i].toFixed(0)} değerine çıktı. RSI çizgisi fiyat çizgisinden daha dik yukarı, formasyon ${istah}.`,
       al ? 'Uç yukarı kıvrıldı ve ölü bölgenin hacmi aşıldı. Al şartı sağlandı.' : kivrildi ? 'Uç yukarı kıvrıldı, hacim barı bekleniyor.' : 'Uç henüz yukarı kıvrılmadı.',
     ],
-    { 'Topuk dibi': dip, 'Kalkış tepesi': tepe });
+    { 'Topuk dibi': dip, 'Kalkış tepesi': tepe },
+    { noktalar: [nokta(m, dipI - 20, oncesi, 'Topuk'), nokta(m, dipI, dip, 'Dip'), nokta(m, kalkisSon, tepe, 'Kalkış'), nokta(m, i, m[i].k, 'Uç')], cizgiler: [cizgi(nokta(m, kalkisSon + 1, m[kalkisSon + 1].k, ''), nokta(m, i, m[i].k, ''), 'trend')] });
 }
 
 export const topukDonusu: Tarayici = {
@@ -97,7 +98,8 @@ export const ikiliTepeDip: Tarayici = {
          hacimArtti ? 'İkinci dipte hacim arttı.' : 'İkinci dipte hacim artmadı.',
          rsiIyi ? 'RSI ikinci dipte daha yüksek, yani pozitif uyumsuzluk var.' : 'RSI uyumsuzluğu yok.',
          kirildi ? 'Boyun çizgisi kapanışla aşıldı.' : 'Boyun çizgisinin kırılması bekleniyor.'],
-        { Boyun: boyun, 'Hedef (formasyon boyu)': boyun + (boyun - Math.min(a.fiyat, c.fiyat)) });
+        { Boyun: boyun, 'Hedef (formasyon boyu)': boyun + (boyun - Math.min(a.fiyat, c.fiyat)) },
+        (() => { const n = [nokta(m, a.i, a.fiyat, '1'), nokta(m, b.i, b.fiyat, 'Boyun'), nokta(m, c.i, c.fiyat, '2')]; return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, a.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
     }
     if (a.tur === 'tepe' && b.tur === 'dip' && c.tur === 'tepe' && i - c.i <= 15 && c.i - a.i >= 10) {
       if (!yakin(c.fiyat, a.fiyat, 3)) return null;
@@ -111,7 +113,8 @@ export const ikiliTepeDip: Tarayici = {
          hacimDustu ? 'İkinci tepede hacim düştü.' : 'İkinci tepede hacim düşmedi.',
          rsiIyi ? 'RSI ikinci tepede ilk tepeyi geçemedi, yani negatif uyumsuzluk var.' : 'RSI uyumsuzluğu yok.',
          kirildi ? 'Boyun çizgisi aşağı kırıldı.' : 'Boyun çizgisinin kırılması bekleniyor.'],
-        { Boyun: boyun, 'Hedef (formasyon boyu)': boyun - (Math.max(a.fiyat, c.fiyat) - boyun) });
+        { Boyun: boyun, 'Hedef (formasyon boyu)': boyun - (Math.max(a.fiyat, c.fiyat) - boyun) },
+        (() => { const n = [nokta(m, a.i, a.fiyat, '1'), nokta(m, b.i, b.fiyat, 'Boyun'), nokta(m, c.i, c.fiyat, '2')]; return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, a.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
     }
     return null;
   },
@@ -137,7 +140,8 @@ export const qm: Tarayici = {
         [`Yükseliş QM: 1 noktası ${f2(p1.fiyat)}, 3 noktası ${f2(p3.fiyat)} ile 1'in altında, 4 noktası ${f2(p4.fiyat)} ile 2 noktasını (${f2(p2.fiyat)}) aştı.`,
          `5 numaralı bacak 1 seviyesine (${f2(hedefBolge)}) geldi. Burası dönüş aranacak bölgedir.`,
          donus ? 'Son mum yukarı döndü.' : 'Dönüş mumu bekleniyor.'],
-        { '1 noktası seviyesi': hedefBolge, 'Hedef (2-4 çizgisi)': p4.fiyat });
+        { '1 noktası seviyesi': hedefBolge, 'Hedef (2-4 çizgisi)': p4.fiyat },
+        (() => { const n = [p1, p2, p3, p4, p5].map((q, k) => nokta(m, q.i, q.fiyat, String(k + 1))); return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, p1.i, hedefBolge, ''), nokta(m, i, hedefBolge, ''), 'boyun')] }; })());
     }
     if (p1.tur === 'tepe' && p3.fiyat > p1.fiyat && p4.fiyat < p2.fiyat && p5.tur === 'tepe') {
       const hedefBolge = p1.fiyat;
@@ -148,7 +152,8 @@ export const qm: Tarayici = {
         [`Düşüş QM: 1 noktası ${f2(p1.fiyat)}, 3 noktası ${f2(p3.fiyat)} ile 1'in üstünde, 4 noktası ${f2(p4.fiyat)} ile 2 noktasının (${f2(p2.fiyat)}) altına indi.`,
          `5 numaralı bacak 1 seviyesine (${f2(hedefBolge)}) geldi. Burası dönüş aranacak bölgedir.`,
          donus ? 'Son mum aşağı döndü.' : 'Dönüş mumu bekleniyor.'],
-        { '1 noktası seviyesi': hedefBolge, 'Hedef (2-4 çizgisi)': p4.fiyat });
+        { '1 noktası seviyesi': hedefBolge, 'Hedef (2-4 çizgisi)': p4.fiyat },
+        (() => { const n = [p1, p2, p3, p4, p5].map((q, k) => nokta(m, q.i, q.fiyat, String(k + 1))); return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, p1.i, hedefBolge, ''), nokta(m, i, hedefBolge, ''), 'boyun')] }; })());
     }
     return null;
   },
@@ -181,7 +186,8 @@ export const wolfe: Tarayici = {
        `Üç kural da sağlandı: 3 noktası 1'in ${dusus ? 'üstünde' : 'altında'}, 4 noktası 1 ile 2 arasında, 5 noktası 3'ün ${dusus ? 'üstünde' : 'altında'}.`,
        tasti ? `5 noktası kulak çizgisini (${f2(kulak5)}) aştı${geriKirdi ? ' ve geri kırdı. Giriş yeri burasıdır.' : '. Geri kırılması bekleniyor.'}` : 'Kulak çizgisi aşılmadı, standart Wolfe yapısı.',
        simetri ? 'Dalgalar birbirine simetrik.' : 'Dalgaların simetrisi zayıf.'],
-      { 'Hedef 1 (4 noktası)': w4.fiyat, 'Hedef 2 (1-4 çizgisi)': hedef2, 'Kulak çizgisi': kulak5 });
+      { 'Hedef 1 (4 noktası)': w4.fiyat, 'Hedef 2 (1-4 çizgisi)': hedef2, 'Kulak çizgisi': kulak5 },
+      (() => { const n = [w1, w2, w3, w4, w5].map((q, k) => nokta(m, q.i, q.fiyat, String(k + 1))); return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(n[0], nokta(m, w5.i, kulak5, ''), 'trend'), cizgi(n[0], nokta(m, i + 10, hedef2, ''), 'trend')] }; })());
   },
 };
 
@@ -214,7 +220,8 @@ export const abcdEsnek: Tarayici = {
        `C noktası, A ile B arasının yüzde ${yuzdeC}${iyelikEki(yuzdeC)}ni geri aldı. 1 bölü ${yuzdeC} eşittir ${katsayi.toFixed(4).replace('.', ',')}, yani hedef yüzde ${hedefYuzde}.`,
        `Fiyat hedef bölgesinde. İlk iki hedef ${hedefler.slice(0, 2).map(f2).join(' ve ')}. Yedek hedefler yüzde 127 için ${f2(klasik[0])}, yüzde 161 için ${f2(klasik[1])}.`,
        `${dususABCD ? 'Düşüş' : 'Yükseliş'} dalgası burada bitebilir. Dönüş aranır.`],
-      { 'Hedef 1': hedefler[0], 'Hedef 2': hedefler[1], 'Yüzde 127 hedefi': klasik[0], 'Yüzde 161 hedefi': klasik[1] });
+      { 'Hedef 1': hedefler[0], 'Hedef 2': hedefler[1], 'Yüzde 127 hedefi': klasik[0], 'Yüzde 161 hedefi': klasik[1] },
+      (() => { const n = [nokta(m, A.i, A.fiyat, 'A'), nokta(m, B.i, B.fiyat, 'B'), nokta(m, C.i, C.fiyat, 'C'), nokta(m, D.i, m[i].k, 'D')]; return { noktalar: n, cizgiler: bacaklar(n) }; })());
   },
 };
 
@@ -244,7 +251,8 @@ export const oboTobo: Tarayici = {
          hacimIyi ? 'Formasyonun sağ yarısındaki hacim sol yarısından fazla.' : 'Formasyonun sağ yarısında hacim artmadı.',
          rsiIyi ? 'Baş ile sol omuz arasında RSI pozitif uyumsuzluk gösteriyor.' : 'RSI uyumsuzluğu yok.',
          kirildi ? 'Boyun çizgisi kapanışla aşıldı.' : 'Boyun çizgisinin kırılması bekleniyor.'],
-        { Boyun: boyun, 'Hedef (boyun artı boy)': boyun + yukseklik });
+        { Boyun: boyun, 'Hedef (boyun artı boy)': boyun + yukseklik },
+        (() => { const n = [nokta(m, so.i, so.fiyat, 'SO'), nokta(m, d1.i, d1.fiyat, ''), nokta(m, bas.i, bas.fiyat, 'Baş'), nokta(m, d2.i, d2.fiyat, ''), nokta(m, sa.i, sa.fiyat, 'SA')]; return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, so.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
     }
     if (so.tur === 'tepe' && bas.tur === 'tepe' && sa.tur === 'tepe' && bas.fiyat > so.fiyat && bas.fiyat > sa.fiyat && yakin(sa.fiyat, so.fiyat, 6)) {
       const boyun = Math.max(d1.fiyat, d2.fiyat);
@@ -260,7 +268,8 @@ export const oboTobo: Tarayici = {
          hacimIyi ? 'Baştaki hacim sol omuzdakinden düşük, yükseliş iştahsız.' : 'Baştaki hacim düşmedi.',
          rsiIyi ? 'RSI negatif uyumsuzluk gösteriyor.' : 'RSI uyumsuzluğu yok.',
          kirildi ? 'Boyun çizgisi aşağı kırıldı.' : 'Boyun çizgisinin kırılması bekleniyor.'],
-        { Boyun: boyun, 'Hedef (boyun eksi boy)': boyun - yukseklik });
+        { Boyun: boyun, 'Hedef (boyun eksi boy)': boyun - yukseklik },
+        (() => { const n = [nokta(m, so.i, so.fiyat, 'SO'), nokta(m, d1.i, d1.fiyat, ''), nokta(m, bas.i, bas.fiyat, 'Baş'), nokta(m, d2.i, d2.fiyat, ''), nokta(m, sa.i, sa.fiyat, 'SA')]; return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, so.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
     }
     return null;
   },
@@ -299,7 +308,8 @@ export const ucluTepeDip: Tarayici = {
            `Boyun çizgisi iki ara tepenin yükseği, ${f2(boyun)}. Formasyon boyu ${f2(boyun - taban)}.`,
            rsiIyi ? 'RSI üçüncü dipte ilk dipten yüksek: satış gücü azalıyor.' : 'RSI uyumsuzluğu yok.',
            kirildi ? 'Boyun çizgisi kapanışla aşıldı; alış şartı sağlandı.' : 'Boyun çizgisinin kırılması bekleniyor; üçüncü dipten dönüş tek başına giriş değildir.'],
-          { Boyun: boyun, 'Hedef (bir boy)': boyun + (boyun - taban), 'Hedef (iki boy)': boyun + 2 * (boyun - taban), 'Stop (üçüncü dip)': e.fiyat });
+          { Boyun: boyun, 'Hedef (bir boy)': boyun + (boyun - taban), 'Hedef (iki boy)': boyun + 2 * (boyun - taban), 'Stop (üçüncü dip)': e.fiyat },
+          (() => { const n = [a, b, c, d, e].map((q, k) => nokta(m, q.i, q.fiyat, k % 2 === 0 ? String(k / 2 + 1) : '')); return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, a.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
       }
       if (a.tur === 'tepe' && c.tur === 'tepe' && e.tur === 'tepe' && bant(a.fiyat, c.fiyat, e.fiyat) && m[i].y <= Math.max(a.fiyat, c.fiyat, e.fiyat) * 1.01) {
         const boyun = Math.min(b.fiyat, d.fiyat);
@@ -313,7 +323,8 @@ export const ucluTepeDip: Tarayici = {
            `Boyun çizgisi iki ara dibin alçağı, ${f2(boyun)}. Formasyon boyu ${f2(tavan - boyun)}.`,
            rsiIyi ? 'RSI üçüncü tepede ilk tepeden düşük: alış gücü azalıyor.' : 'RSI uyumsuzluğu yok.',
            kirildi ? 'Boyun çizgisi aşağı kırıldı; elde mal varsa çıkış yeri.' : 'Boyun çizgisinin kırılması bekleniyor; üçüncü tepe tek başına satış değildir.'],
-          { Boyun: boyun, 'Hedef (bir boy aşağı)': boyun - (tavan - boyun), 'Hedef (iki boy aşağı)': boyun - 2 * (tavan - boyun), 'Stop (üçüncü tepe)': e.fiyat });
+          { Boyun: boyun, 'Hedef (bir boy aşağı)': boyun - (tavan - boyun), 'Hedef (iki boy aşağı)': boyun - 2 * (tavan - boyun), 'Stop (üçüncü tepe)': e.fiyat },
+          (() => { const n = [a, b, c, d, e].map((q, k) => nokta(m, q.i, q.fiyat, k % 2 === 0 ? String(k / 2 + 1) : '')); return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, a.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
       }
     }
     return null;
