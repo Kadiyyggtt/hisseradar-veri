@@ -1,9 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Eslesme, Gosterge, GrafikVerisi, HedefDosyasi, Portfoy, TaramaSonucu } from './tipler';
+import type { Eslesme, GecmisDosyasi, Gosterge, GrafikVerisi, HedefDosyasi, Portfoy, TaramaSonucu } from './tipler';
 import { portfoyuIlerlet } from './portfoy';
 import { hedefeUlasanlar, sicilIlerlet } from './sicil';
+import { gecmisIlerlet } from './gecmis';
+import { yahooMumlar } from './veri/yahoo';
+import { ENDEKSLER } from './veri/evren';
 import type { Sicil } from './tipler';
 import { ema } from './gostergeler/ortalama';
 import { rsi } from './gostergeler/rsi';
@@ -145,6 +148,20 @@ async function main() {
     }
   } else if (oncekiPortfoy) {
     sonuc.portfoy = oncekiPortfoy;
+  }
+  // Karşılaştırma geçmişi (gecmis.json): endeks kapanışları + hayali portföy değerleri, günde bir satır.
+  if (sinir === Infinity && !tekPiyasa) {
+    try {
+      const sonKapanis = async (sembol: string) => { const m = await yahooMumlar(sembol, '1d', '10d'); return m.length ? y2(m[m.length - 1].k) : null; };
+      const endeks = { xu100: await sonKapanis(ENDEKSLER.XU100).catch(() => null), spx: await sonKapanis(ENDEKSLER.SPX).catch(() => null) };
+      const gecmisYol = join(CIKTI, 'gecmis.json');
+      const eski = existsSync(gecmisYol) ? (JSON.parse(readFileSync(gecmisYol, 'utf8')) as GecmisDosyasi) : null;
+      const gecmis = gecmisIlerlet(eski, sonuc.uretildi, endeks, sonuc.portfoy ?? null);
+      writeFileSync(gecmisYol, JSON.stringify(gecmis));
+      console.log(`Geçmiş: ${gecmis.gunler.length} gün; XU100 ${endeks.xu100}, SPX ${endeks.spx}.`);
+    } catch (hata) {
+      console.error('Geçmiş yazılamadı (tarama devam ediyor):', (hata as Error).message);
+    }
   }
   // Karne (sicil.json): hata verirse taramanın geri kalanını bozmaz.
   if (sinir === Infinity && !tekPiyasa) {

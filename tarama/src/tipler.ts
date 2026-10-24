@@ -195,3 +195,22 @@ export interface HedefDosyasi {
   uretildi: number;
   ulasanlar: HedefUlasan[];
 }
+
+/**
+ * KARŞILAŞTIRMA GEÇMİŞİ — gün başına bir satır: endeks kapanışları ve hayali
+ * portföyün dönem değerleri. Uygulama bununla "senin sanal cüzdanın, hayali
+ * portföy, BIST 100" üç çizgisini aynı eksende çizer. En çok 400 gün.
+ */
+export interface GecmisGun {
+  /** Günün unix saniyesi (İstanbul gününün 00:00'ı). */
+  t: number;
+  xu100: number | null;
+  spx: number | null;
+  /** Hayali portföyün 100 bazlı değerleri; dönem yoksa null. */
+  hayali: { hafta: number | null; ay: number | null; yil: number | null };
+}
+export interface GecmisDosyasi {
+  surum: 1;
+  uretildi: number;
+  gunler: GecmisGun[];
+}

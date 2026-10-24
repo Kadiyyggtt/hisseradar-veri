@@ -9,6 +9,7 @@ import { bildirimMetni, haftalikOzet, hedefBildirimMetni, hedefKonusu, sabahBrif
 import { hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
 import { ABD_HISSELER, BIST_HISSELER } from './veri/evren';
 import { gostergeler } from './calistir';
+import { EN_COK_GUN, gecmisIlerlet, gunBasi } from './gecmis';
 import { donemAnahtari, portfoyuIlerlet, ucluSec } from './portfoy';
 
 /**
@@ -483,6 +484,22 @@ console.log('sicil');
   const genc: Sicil = { ...sicil, acik: Array.from({ length: 50 }, () => kayit('qm', 'ulasti', 0)), kapali: [kayit('bayrak', 'ulasti', 1), kayit('qm', 'ulasti', 2)] };
   kontrol('hafta: süresi dolan yoksa ve açık kayıt çoksa genç karne notu', /Karne yeni; süresi dolan kayıt henüz yok/.test(haftalikOzet(sonuc, genc, simdi).govde));
   kontrol('hafta: sicil yoksa yine cümle', /sonuçlanan formasyon kaydı yok/.test(haftalikOzet(sonuc, null, simdi).govde));
+}
+
+// GEÇMİŞ: gün başı İstanbul'a göre, aynı gün günceller, yeni gün ekler, 400 sınırı, eksik veri null.
+{
+  const t = Math.floor(Date.UTC(2026, 9, 24, 20, 30) / 1000); // 23:30 TR
+  kontrol('gün başı 24 Ekim 00:00 TR', gunBasi(t) === Math.floor(Date.UTC(2026, 9, 23, 21, 0) / 1000));
+  kontrol('gün başı: 00:30 TR hâlâ aynı gün', gunBasi(Math.floor(Date.UTC(2026, 9, 23, 21, 30) / 1000)) === gunBasi(t));
+  const g1 = gecmisIlerlet(null, t - 6 * 3600, { xu100: 10000, spx: 5000 }, null);
+  kontrol('ilk satır', g1.gunler.length === 1 && g1.gunler[0].xu100 === 10000 && g1.gunler[0].hayali.yil === null);
+  const g2 = gecmisIlerlet(g1, t, { xu100: 10100, spx: null }, { hafta: null, ay: null, yil: { tur: 'yil', anahtar: '2026', baslangic: 0, pozisyonlar: [], deger: 97.5 }, gecmis: [] });
+  kontrol('aynı gün ikinci koşu satırı günceller', g2.gunler.length === 1 && g2.gunler[0].xu100 === 10100 && g2.gunler[0].spx === null && g2.gunler[0].hayali.yil === 97.5);
+  const g3 = gecmisIlerlet(g2, t + 86400, { xu100: 10200, spx: 5100 }, null);
+  kontrol('yeni gün eklenir, sıra korunur', g3.gunler.length === 2 && g3.gunler[1].xu100 === 10200 && g3.gunler[0].t < g3.gunler[1].t);
+  let g = g3;
+  for (let i = 2; i < EN_COK_GUN + 20; i++) g = gecmisIlerlet(g, t + i * 86400, { xu100: 1, spx: 1 }, null);
+  kontrol('400 gün sınırı', g.gunler.length === EN_COK_GUN && g.gunler[0].t > g3.gunler[0].t);
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

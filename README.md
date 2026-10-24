@@ -10,6 +10,7 @@ stratejilere göre tarar ve sonucu `docs/tarama/` altına yazar (GitHub Pages ya
 | `grafik.json` | Sembol başına son 60 günlük mum (açılış, yüksek, düşük, kapanış, hacim), şirket adı, sektör, RSI/MACD/EMA |
 | `sicil.json` | Formasyon karnesi: ileriye dönük "hedefe ulaştı mı" kayıtları |
 | `hedef.json` | Bu koşuda ilk hedefe ulaşan kayıtlar (takip bildirimi `hedef-BIST-THYAO` konusuna) |
+| `gecmis.json` | Gün başına endeks kapanışı (XU100, S&P 500) ve hayali portföy değerleri; uygulamadaki karşılaştırma grafiği |
 | `ozet.json` | Sayaçlar |
 
 - `npm run tara:test` sentetik sınama (her tarayıcı için uymalı/uymamalı örnek; sicil, bildirim metni, evren, göstergeler)
