@@ -6,7 +6,7 @@
 export const TARAMA_ADLARI: Record<string, string> = {
   '123-dongusu': '1-2-3 Döngüsü', '200-sikismasi': '200 Sıkışması', 'abcd-esnek': 'Esnek ABCD', 'abcd-klasik': 'Klasik ABCD',
   'altin-kesisme': 'Altın Kesişme', 'ay-sonu-taramasi': 'Ay Sonu Taraması', 'aylik-5-10': 'Aylık 5 ve 10', bayrak: 'Bayrak ve Flama',
-  'bes-dalga': 'Beş Dalga', 'birlesik-123': 'Birleşik 1-2-3', dikdortgen: 'Üçlü Tepe, Üçlü Dip ve Dikdörtgen', dugum: 'Düğüm 5-8-13-21',
+  'bes-dalga': 'Beş Dalga', 'birlesik-123': 'Birleşik 1-2-3', dikdortgen: 'Dikdörtgen: Üç Temas Kutuyu Kurar', dugum: 'Düğüm 5-8-13-21',
   'ema200-donus': '200 Günlük Geri Dönüş', ema200: '200 Günlük', 'endeks-nabzi': 'Endeks Nabzı', 'fib-merdiveni': 'Fibonacci Merdiveni',
   'fincan-kulp': 'Fincan Kulp', 'haftalik-cift-onay': 'Haftalık Çift Onay', heikin: 'Heikin Ashi Teyit Mumu', 'hisse-8-89': 'Hisse 8/89',
   'ikili-tepe-dip': 'İkili Tepe ve İkili Dip', 'k-52-hafta': '52 Haftalık Zirve Kırılımı', 'k-dar-bayrak': 'Yüksek ve Dar Bayrak',
