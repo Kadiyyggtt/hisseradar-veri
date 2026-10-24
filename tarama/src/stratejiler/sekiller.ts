@@ -204,6 +204,47 @@ export const fincanKulp: Tarayici = {
   },
 };
 
+/** 2.6b — Ters fincan kulp: tepede ters U (30-120 mum), sağ dudak sol dudağa yakın, kısa sığ ters kulp, boyun aşağı kırılımı. Dağıtım. */
+export const tersFincanKulp: Tarayici = {
+  id: 'ters-fincan-kulp',
+  tara(s) {
+    const m = s['1d'];
+    const i = m.length - 1;
+    if (i < 80) return null;
+    for (let uzunluk = 130; uzunluk >= 30; uzunluk -= 5) {
+      const bas = i - uzunluk;
+      if (bas < 20) continue;
+      const solDudak = Math.min(...m.slice(bas, bas + 5).map((x) => x.d));
+      const tepeI = bas + m.slice(bas, i).reduce((en, x, j, a) => (x.y > a[en].y ? j : en), 0);
+      const tepe = m[tepeI].y;
+      const yukseklik = tepe / solDudak - 1;
+      if (yukseklik < 0.12 || yukseklik > 0.6) continue;
+      const konum = (tepeI - bas) / uzunluk;
+      if (konum < 0.3 || konum > 0.7) continue;
+      let sagI = -1;
+      for (let j = tepeI + 1; j < i - 3; j++) if (m[j].d <= solDudak * 1.04) { sagI = j; break; }
+      if (sagI < 0) continue;
+      const sagDudak = m[sagI].d;
+      if (!yakin(sagDudak, solDudak, 6)) continue;
+      const kulp = m.slice(sagI, i + 1);
+      if (kulp.length < 4 || kulp.length > 25) continue;
+      const kulpTepe = Math.max(...kulp.map((x) => x.y));
+      const kulpYukseklik = kulpTepe / sagDudak - 1;
+      if (kulpYukseklik > yukseklik / 3 || kulpTepe > tepe - (tepe - sagDudak) * 0.5) continue;
+      const boyun = Math.min(solDudak, sagDudak);
+      const kirildi = m[i].k < boyun;
+      const kat = m[i].h / (hacimOrt(m, 20, i - 1) || 1);
+      const boy = tepe - boyun;
+      return eslesme(s, 'ters-fincan-kulp', '1d', kirildi ? 'sat' : 'izle', kirildi ? (kat >= 1.5 ? 80 : 60) : 55,
+        [`Ters fincan: ${uzunluk} mum süren yuvarlak tepe, yüksekliği yüzde ${(yukseklik * 100).toFixed(0)}. Tepe ${f2(tepe)} ortada, yani ters U biçiminde: aylar süren dağıtım.`,
+         `Ters kulp: ${kulp.length} mum süren sığ bir sıçrama (yüzde ${(kulpYukseklik * 100).toFixed(0)}), fincanın alt yarısında kaldı. Boyun seviyesine son bir alıcı daha çekildi.`,
+         kirildi ? `Boyun çizgisi (${f2(boyun)}) kapanışla aşağı kırıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı. Elde mal varsa burası çıkış yeridir.` : `Boyun çizgisinin (${f2(boyun)}) aşağı kırılması bekleniyor; elde mal varsa stop boyundur.`],
+        { Boyun: boyun, 'Hedef (bir boy aşağı)': boyun - boy, 'Hedef (iki boy aşağı)': boyun - 2 * boy, 'Stop (kulp tepesi)': kulpTepe });
+    }
+    return null;
+  },
+};
+
 /** 2.12 — Beş dalga: son 90 mumda en büyük dalganın ucu 1, sonra 2-3-4-5; 5'te al/sat bölgesi. */
 export const besDalga: Tarayici = {
   id: 'bes-dalga',

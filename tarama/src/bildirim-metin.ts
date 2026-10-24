@@ -14,6 +14,8 @@ export const TARAMA_ADLARI: Record<string, string> = {
   'saatlik-9-26': 'Saatlik 9/26', 'sahte-cikis': 'Sahte Çıkış', sma30w: '30 Haftalık', 'topuk-donusu': 'Topuk Dönüşü',
   'uc-bant-testi': 'Üç Bant Testi', ucgenler: 'Üçgenler', wolfe: 'Wolfe Dalgaları', 'yeni-dongu': 'Sahte Çıkış Yapmayan Yapı',
   'yukselen-dipler': 'Alçalan Tepeler, Yükselen Dipler',
+  gartley: 'Gartley', bat: 'Bat', butterfly: 'Butterfly', 'ters-fincan-kulp': 'Ters Fincan Kulp', 'uclu-tepe-dip': 'Üçlü Tepe ve Üçlü Dip',
+  yutan: 'Yutan Mum', cekic: 'Çekiç ve Kayan Yıldız', 'sabah-yildizi': 'Sabah ve Akşam Yıldızı',
 };
 
 import type { HedefUlasan } from './tipler';

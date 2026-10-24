@@ -214,6 +214,96 @@ console.log('sekiller: ucgenler / dikdortgen / bayrak / fincan-kulp / kama');
   }
 }
 
+console.log('harmonik: gartley / bat / butterfly');
+{
+  // X→A→B→C→D bacaklarını doğrusal parçalarla kur; son mum D'den hafif yukarı döner (yükseliş kalıbı, M biçimi).
+  const harmonik = (bOran: number, cOran: number, dOran: number) => {
+    const X = 100; const A = 125; const xa = A - X;
+    const B = A - xa * bOran; const C = B + (A - B) * cOran; const D = A - xa * dOran;
+    const k = [...sabit(100, 100), ...dogrusal(12, X, A), ...dogrusal(10, A, B), ...dogrusal(8, B, C), ...dogrusal(10, C, D), D * 1.006];
+    return seri(mumla(k, undefined, 0.002));
+  };
+  const g = tarayici('gartley').tara(harmonik(0.618, 0.618, 0.786), ORTAM);
+  kontrol('gartley: B 0,618 ve D 0,786 uymalı, yön al', g !== null && g.yon === 'al', g ? g.yon + ' ' + g.aciklama.join(' | ') : 'null');
+  kontrol('gartley: stop X seviyesi, hedefler D üstünde', !!g?.seviyeler && Math.abs(g.seviyeler['Stop (X)'] - 100) < 1 && g.seviyeler['Hedef 1 (AD %38,2)'] > g.seviyeler['D bölgesi']);
+  const b = tarayici('bat').tara(harmonik(0.45, 0.618, 0.886), ORTAM);
+  kontrol('bat: B 0,45 ve D 0,886 uymalı', b !== null && b.yon === 'al', b ? b.yon : 'null');
+  const bf = tarayici('butterfly').tara(harmonik(0.786, 0.618, 1.272), ORTAM);
+  kontrol('butterfly: B 0,786 ve D 1,272 (X ötesi) uymalı', bf !== null && bf.yon === 'al', bf ? bf.yon : 'null');
+  kontrol('gartley: bat oranlarına uymamalı', tarayici('gartley').tara(harmonik(0.45, 0.618, 0.886), ORTAM) === null);
+  kontrol('bat: butterfly oranlarına uymamalı', tarayici('bat').tara(harmonik(0.786, 0.618, 1.272), ORTAM) === null);
+  kontrol('butterfly: D X\'i geçmezse uymamalı', tarayici('butterfly').tara(harmonik(0.786, 0.618, 0.9), ORTAM) === null);
+  kontrol('harmonik: düz trendde uymamalı', ['gartley', 'bat', 'butterfly'].every((id) => tarayici(id).tara(seri(mumla(dogrusal(200, 50, 150))), ORTAM) === null));
+  // Düşüş kalıbı (W biçimi): ayna.
+  const dususG = (() => { const X = 125; const A = 100; const xa = X - A; const B = A + xa * 0.618; const C = B - (B - A) * 0.618; const D = A + xa * 0.786; const k = [...sabit(100, 125), ...dogrusal(12, X, A), ...dogrusal(10, A, B), ...dogrusal(8, B, C), ...dogrusal(10, C, D), D * 0.994]; return seri(mumla(k, undefined, 0.002)); })();
+  const gd = tarayici('gartley').tara(dususG, ORTAM);
+  kontrol('gartley düşüş kalıbı: yön sat', gd !== null && gd.yon === 'sat', gd ? gd.yon : 'null');
+}
+
+console.log('mumlar: yutan / cekic / sabah-yildizi');
+{
+  const T0 = Date.UTC(2024, 0, 1) / 1000;
+  const mum = (i: number, a: number, y: number, d: number, k: number, h = 1000): Mum => ({ t: T0 + i * 86400, a, y, d, k, h });
+  // 50 mumluk düşüş: 120'den 100'e, her gün küçük kırmızı gövde.
+  const dusus = (): Mum[] => Array.from({ length: 50 }, (_, i) => { const a = 120 - i * 0.4; return mum(i, a, a + 0.2, a - 0.6, a - 0.4); });
+  // Yutan: dün kırmızı (100→99), bugün yeşil 98,8→101 (sarıyor), yarın 102 kapanış (teyit).
+  const yutanSeri = [...dusus(), mum(50, 100, 100.2, 98.9, 99), mum(51, 98.8, 101.3, 98.6, 101, 2000), mum(52, 101, 102.5, 100.5, 102)];
+  const ey = tarayici('yutan').tara(seri(yutanSeri), ORTAM);
+  kontrol('yutan: boğa yutan + teyit → al', ey !== null && ey.yon === 'al', ey ? ey.yon + ' ' + ey.aciklama[0] : 'null');
+  const eyIzle = tarayici('yutan').tara(seri(yutanSeri.slice(0, -1)), ORTAM);
+  kontrol('yutan: teyitsiz → izle', eyIzle !== null && eyIzle.yon === 'izle', eyIzle ? eyIzle.yon : 'null');
+  const sarmayan = [...dusus(), mum(50, 100, 100.2, 98.9, 99), mum(51, 99.2, 100.5, 99, 100.3)];
+  kontrol('yutan: gövde sarmıyorsa uymamalı', tarayici('yutan').tara(seri(sarmayan), ORTAM) === null);
+  const yukseliste = Array.from({ length: 50 }, (_, i) => { const a = 100 + i * 0.4; return mum(i, a, a + 0.6, a - 0.2, a + 0.4); });
+  kontrol('yutan: yükseliş ortasında boğa yutan uymamalı (bağlam)', tarayici('yutan').tara(seri([...yukseliste, mum(50, 120, 120.2, 118.9, 119), mum(51, 118.8, 121.3, 118.6, 121), mum(52, 121, 122, 120.5, 121.8)]), ORTAM) === null);
+  // Çekiç: dipte uzun alt fitil (gövde 0,3; fitil 2,4), ertesi gün tepesinin üstünde kapanış.
+  const cekicSeri = [...dusus(), mum(50, 100, 100.3, 97.5, 100.2, 1800), mum(51, 100.2, 101.2, 99.8, 101)];
+  const ec = tarayici('cekic').tara(seri(cekicSeri), ORTAM);
+  kontrol('çekiç + teyit → al', ec !== null && ec.yon === 'al', ec ? ec.yon + ' ' + ec.aciklama[0] : 'null');
+  kontrol('çekiç: teyitsiz → izle', tarayici('cekic').tara(seri(cekicSeri.slice(0, -1)), ORTAM)?.yon === 'izle');
+  kontrol('çekiç: iki taraflı fitil (topaç) uymamalı', tarayici('cekic').tara(seri([...dusus(), mum(50, 100, 101.5, 98.5, 100.1)]), ORTAM) === null);
+  // Kayan yıldız: tepede uzun üst fitil, ertesi gün dibinin altında kapanış → sat.
+  const yildiz = [...yukseliste, mum(50, 120, 122.6, 119.8, 120.1, 1800), mum(51, 120, 120.3, 118.9, 119.2)];
+  const ek = tarayici('cekic').tara(seri(yildiz), ORTAM);
+  kontrol('kayan yıldız + teyit → sat', ek !== null && ek.yon === 'sat', ek ? ek.yon : 'null');
+  // Sabah yıldızı: uzun kırmızı 100→98, yıldız 97,9→98,1, yeşil 98,2→99,6 (ortayı 99 geçer).
+  const sabah = [...dusus(), mum(50, 100, 100.1, 97.8, 98), mum(51, 97.9, 98.3, 97.5, 98.1), mum(52, 98.2, 99.8, 98, 99.6, 2000)];
+  const es = tarayici('sabah-yildizi').tara(seri(sabah), ORTAM);
+  kontrol('sabah yıldızı → al', es !== null && es.yon === 'al', es ? es.yon + ' ' + es.aciklama[0] : 'null');
+  const yarim = [...dusus(), mum(50, 100, 100.1, 97.8, 98), mum(51, 97.9, 98.3, 97.5, 98.1), mum(52, 98.2, 98.9, 98, 98.7)];
+  kontrol('sabah yıldızı: üçüncü mum ortayı geçmezse uymamalı', tarayici('sabah-yildizi').tara(seri(yarim), ORTAM) === null);
+  const aksam = [...yukseliste, mum(50, 120, 122.2, 119.9, 122), mum(51, 122.1, 122.5, 121.8, 122.2), mum(52, 122, 122.1, 120.2, 120.4, 2000)];
+  const ea = tarayici('sabah-yildizi').tara(seri(aksam), ORTAM);
+  kontrol('akşam yıldızı → sat', ea !== null && ea.yon === 'sat', ea ? ea.yon : 'null');
+  for (const id of ['yutan', 'cekic', 'sabah-yildizi']) kontrol(`${id}: düz dalgada hata fırlatmaz`, (() => { try { tarayici(id).tara(seri(mumla(dalga(400, 100, 15, 90))), ORTAM); return true; } catch { return false; } })());
+}
+
+console.log('ters-fincan-kulp / uclu-tepe-dip');
+{
+  // Ters fincan: 60 mumluk ters U (100→125→100), 8 mumluk ters kulp 100→105, son mum 98 kırılım.
+  const tf: number[] = [...sabit(40, 100)];
+  for (let t = 0; t < 60; t++) tf.push(100 + 25 * Math.sin((Math.PI * t) / 59));
+  tf.push(...dogrusal(8, 100, 105), 98);
+  const et = tarayici('ters-fincan-kulp').tara(seri(mumla(tf, [...sabit(tf.length - 1, 1000), 1800], 0.003)), ORTAM);
+  kontrol('ters fincan kulp boyun kırılımı → sat', et !== null && et.yon === 'sat', et ? et.yon + ' ' + et.aciklama[0] : 'null');
+  kontrol('ters fincan: hedefler boynun altında, stop kulp tepesi', !!et?.seviyeler && et.seviyeler['Hedef (bir boy aşağı)'] < et.seviyeler.Boyun && et.seviyeler['Stop (kulp tepesi)'] > et.seviyeler.Boyun);
+  const fk: number[] = [...sabit(40, 100)];
+  for (let t = 0; t < 60; t++) fk.push(100 - 25 * Math.sin((Math.PI * t) / 59));
+  fk.push(...dogrusal(8, 100, 95), 102);
+  kontrol('ters fincan: düz fincana uymamalı', tarayici('ters-fincan-kulp').tara(seri(mumla(fk, undefined, 0.003)), ORTAM) === null);
+  // Üçlü dip: 90'da üç dip, 100'de iki tepe, son mum 102.
+  const ud = [...sabit(30, 95), ...dogrusal(8, 95, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(6, 90, 99), 102];
+  const eu = tarayici('uclu-tepe-dip').tara(seri(mumla(ud, undefined, 0.003)), ORTAM);
+  kontrol('üçlü dip boyun kırılımı → al', eu !== null && eu.yon === 'al', eu ? eu.yon + ' ' + eu.aciklama[0] : 'null');
+  const ut = [...sabit(30, 95), ...dogrusal(8, 95, 100), ...dogrusal(8, 100, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(8, 90, 100), ...dogrusal(6, 100, 91), 88];
+  const eut = tarayici('uclu-tepe-dip').tara(seri(mumla(ut, undefined, 0.003)), ORTAM);
+  kontrol('üçlü tepe boyun kırılımı → sat', eut !== null && eut.yon === 'sat', eut ? eut.yon : 'null');
+  const ikili = [...sabit(30, 95), ...dogrusal(8, 95, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 90), ...dogrusal(6, 90, 99), 102];
+  kontrol('üçlü dip: iki dipli W\'ye uymamalı', tarayici('uclu-tepe-dip').tara(seri(mumla(ikili, undefined, 0.003)), ORTAM) === null);
+  const farkli = [...sabit(30, 95), ...dogrusal(8, 95, 90), ...dogrusal(8, 90, 100), ...dogrusal(8, 100, 84), ...dogrusal(8, 84, 100), ...dogrusal(8, 100, 90), ...dogrusal(6, 90, 99), 102];
+  kontrol('üçlü dip: dipler yüzde 3 dışındaysa uymamalı', tarayici('uclu-tepe-dip').tara(seri(mumla(farkli, undefined, 0.003)), ORTAM) === null);
+}
+
 console.log('123-dongusu');
 {
   // dip 80 → tepe 120, sonra %61,8 maliyete (95,3) iniş.
