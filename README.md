@@ -11,10 +11,13 @@ stratejilere göre tarar ve sonucu `docs/tarama/` altına yazar (GitHub Pages ya
 | `sicil.json` | Formasyon karnesi: ileriye dönük "hedefe ulaştı mı" kayıtları |
 | `hedef.json` | Bu koşuda ilk hedefe ulaşan kayıtlar (takip bildirimi `hedef-BIST-THYAO` konusuna) |
 | `gecmis.json` | Gün başına endeks kapanışı (XU100, S&P 500) ve hayali portföy değerleri; uygulamadaki karşılaştırma grafiği |
+| `hisse-sicil.json` | Hisse bazlı geçmiş: son 500 günde her formasyonun o hissede kaç kez oluştuğu ve 30 günde hedefe ulaşıp ulaşmadığı (cumartesi, hisse-sicil.yml) |
 | `ozet.json` | Sayaçlar |
 
 - `npm run tara:test` sentetik sınama (her tarayıcı için uymalı/uymamalı örnek; sicil, bildirim metni, evren, göstergeler)
 - `SINIR=5 npm run tara` küçük gerçek tarama (portföy, sicil ve hedef dosyası yazılmaz)
+- `npm run brifing -- sabah|hafta` sabah brifingi / haftalık özet bildirimi (brifing.yml: hafta içi 06:45 UTC, pazar 15:00 UTC); `KURU=1` yalnız metni yazar
+- `npm run hisse-sicil` hisse bazlı geçmişi hesaplar (haftalık iş akışı; `SINIR=5` ile deneme)
 - `node tarama/arac/evren-guncelle.mjs` taranan evreni yeniler (çeyrekte bir): BIST'te günlük ciro ≥ 30 M₺ ya da piyasa değeri ≥ 10 Mr₺ olan paylar + sabit ABD listesi; ad ve sektörle birlikte `tarama/src/veri/evren.ts` dosyasını yazar
 
 Veri kaynağı Yahoo Finance (15 dakika gecikmeli), yedek Stooq. Bu bir yatırım tavsiyesi değildir; eğitim amaçlı tarama sonucudur.
