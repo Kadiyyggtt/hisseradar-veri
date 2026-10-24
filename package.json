@@ -8,7 +8,8 @@
     "tara": "tsx tarama/src/calistir.ts",
     "tara:test": "tsx tarama/src/sina.ts",
     "bildir": "tsx tarama/src/bildirim.ts",
-    "brifing": "tsx tarama/src/brifing.ts"
+    "brifing": "tsx tarama/src/brifing.ts",
+    "hisse-sicil": "tsx tarama/src/hisse-sicil.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",

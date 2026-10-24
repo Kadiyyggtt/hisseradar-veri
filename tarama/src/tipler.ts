@@ -214,3 +214,34 @@ export interface GecmisDosyasi {
   uretildi: number;
   gunler: GecmisGun[];
 }
+
+/**
+ * HİSSE BAZLI SİCİL — her hissenin son ~2 yılında hangi formasyon kaç kez oluştu,
+ * kaçı 30 işlem gününde ilk hedefe ulaştı. Haftada bir hesaplanır (hisse-sicil.yml),
+ * tarayıcı geçmişte gün gün yürütülür (geleceğe bakmaz: her gün yalnız o güne kadarki veri).
+ */
+export interface HisseSicilKaydi {
+  taramaId: string;
+  /** Eşleşme günü (unix saniye). */
+  t: number;
+  giris: number;
+  hedef: number;
+  sonuc: 'ulasti' | 'ulasmadi' | 'acik';
+  /** Hedefe kaç günde ulaştı; ulaşmadıysa yok. */
+  gun?: number;
+}
+export interface HisseSicili {
+  /** Kapanmış kayıt sayısı ve ulaşan sayısı. */
+  n: number;
+  u: number;
+  formasyon: Record<string, { n: number; u: number }>;
+  /** Son kayıtlar, en yeni başta (en çok 8). */
+  son: HisseSicilKaydi[];
+}
+export interface HisseSicilDosyasi {
+  surum: 1;
+  uretildi: number;
+  gunSayisi: number;
+  sureGun: number;
+  hisseler: Record<string, HisseSicili>;
+}

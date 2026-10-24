@@ -10,6 +10,7 @@ import { hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
 import { ABD_HISSELER, BIST_HISSELER } from './veri/evren';
 import { gostergeler } from './calistir';
 import { EN_COK_GUN, gecmisIlerlet, gunBasi } from './gecmis';
+import { GUNLUK_TARAYICILAR, hisseSicili } from './hisse-sicil';
 import { donemAnahtari, portfoyuIlerlet, ucluSec } from './portfoy';
 
 /**
@@ -500,6 +501,29 @@ console.log('sicil');
   let g = g3;
   for (let i = 2; i < EN_COK_GUN + 20; i++) g = gecmisIlerlet(g, t + i * 86400, { xu100: 1, spx: 1 }, null);
   kontrol('400 gün sınırı', g.gunler.length === EN_COK_GUN && g.gunler[0].t > g3.gunler[0].t);
+}
+
+// HİSSE SİCİLİ: geçmişte gün gün yürütme, kümeleme, sonuç ve süre.
+{
+  kontrol('günlük tarayıcı listesi makul (20-35)', GUNLUK_TARAYICILAR.length >= 20 && GUNLUK_TARAYICILAR.length <= 35, String(GUNLUK_TARAYICILAR.length));
+  // 260 yatay + bayrak (direk 80→100, bez 7 mum, kırılım 101) + hedefe (direk boyu 20 → 121) 10 günde ulaşan yükseliş + 40 yatay.
+  const b = [...sabit(260, 80), ...dogrusal(10, 80, 100), ...dogrusal(7, 100, 96), 101, ...dogrusal(10, 102, 123), ...sabit(40, 123)];
+  const hacim = b.map((_, i) => (i === 277 ? 1800 : 1000));
+  const hs = hisseSicili('T', 'BIST', mumla(b, hacim, 0.004), GUNLUK_TARAYICILAR, 100, 30);
+  const bayrak = hs.son.filter((k) => k.taramaId === 'bayrak');
+  kontrol('bayrak kaydı var ve tek (küme)', bayrak.length === 1, String(bayrak.length));
+  kontrol('bayrak hedefe ulaştı, gün sayısı var', bayrak[0]?.sonuc === 'ulasti' && (bayrak[0]?.gun ?? 0) > 0 && (bayrak[0]?.gun ?? 99) <= 12, JSON.stringify(bayrak[0]));
+  kontrol('kapalı sayım tutarlı', hs.n >= 1 && hs.u <= hs.n && hs.formasyon.bayrak?.u === 1);
+  // Hedefe ulaşmayan: kırılımdan sonra düşüş.
+  const b2 = [...sabit(260, 80), ...dogrusal(10, 80, 100), ...dogrusal(7, 100, 96), 101, ...dogrusal(40, 100, 90)];
+  const hs2 = hisseSicili('T', 'BIST', mumla(b2, b2.map((_, i) => (i === 277 ? 1800 : 1000)), 0.004), GUNLUK_TARAYICILAR, 100, 30);
+  const bayrak2 = hs2.son.filter((k) => k.taramaId === 'bayrak');
+  kontrol('ulaşmayan bayrak "ulasmadi"', bayrak2[0]?.sonuc === 'ulasmadi', JSON.stringify(bayrak2[0]));
+  // Son 5 günde oluşan kayıt "acik" kalır.
+  const b3 = [...sabit(260, 80), ...dogrusal(10, 80, 100), ...dogrusal(7, 100, 96), 101, 102, 103];
+  const hs3 = hisseSicili('T', 'BIST', mumla(b3, b3.map((_, i) => (i === 277 ? 1800 : 1000)), 0.004), GUNLUK_TARAYICILAR, 100, 30);
+  kontrol('yeni kayıt açık, sayıma girmez', hs3.son.some((k) => k.taramaId === 'bayrak' && k.sonuc === 'acik') && !hs3.formasyon.bayrak);
+  kontrol('düz seride kayıt yok', hisseSicili('T', 'BIST', mumla(sabit(400, 50)), GUNLUK_TARAYICILAR, 100, 30).son.length === 0);
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);
