@@ -184,6 +184,8 @@ export const fincanKulp: Tarayici = {
       let sagI = -1;
       for (let j = dipI + 1; j < i - 3; j++) if (m[j].y >= solDudak * 0.96) { sagI = j; break; }
       if (sagI < 0) continue;
+      // Sağ dudak: dudağa ilk yaklaşımdan kulp başlangıcına kadarki en yüksek mum (ilk temas değil, gerçek dudak).
+      for (let j = sagI + 1; j < i - 3; j++) if (m[j].y >= m[sagI].y) sagI = j;
       const sagDudak = m[sagI].y;
       if (!yakin(sagDudak, solDudak, 6)) continue;
       const kulp = m.slice(sagI, i + 1);
@@ -193,6 +195,9 @@ export const fincanKulp: Tarayici = {
       if (kulpDerinlik > derinlik / 3 || kulpDip < dip + (sagDudak - dip) * 0.5) continue;
       const boyun = Math.max(solDudak, sagDudak);
       const kirildi = m[i].k > boyun;
+      // Kırılım taze olmalı: boyun üstündeki ilk kapanış en çok 3 mum önce. Haftalar önce kırılıp uzaklaşmış hisse sinyal değildir.
+      const ilkKirilim = kulp.findIndex((x) => x.k > boyun);
+      if (kirildi && kulp.length - 1 - ilkKirilim > 3) continue;
       const kat = m[i].h / (hacimOrt(m, 20, i - 1) || 1);
       return eslesme(s, 'fincan-kulp', '1d', kirildi ? 'al' : 'izle', kirildi ? (kat >= 1.5 ? 80 : 60) : 55,
         [`Fincan: ${uzunluk} mum sürdü, derinliği yüzde ${(derinlik * 100).toFixed(0)}. Dip ${f2(dip)} ile ortada, yani U biçiminde.`,
@@ -224,15 +229,22 @@ export const tersFincanKulp: Tarayici = {
       let sagI = -1;
       for (let j = tepeI + 1; j < i - 3; j++) if (m[j].d <= solDudak * 1.04) { sagI = j; break; }
       if (sagI < 0) continue;
+      // Sağ dudak: dudağa ilk inişten kulp başlangıcına kadarki en düşük mum.
+      for (let j = sagI + 1; j < i - 3; j++) if (m[j].d <= m[sagI].d) sagI = j;
       const sagDudak = m[sagI].d;
       if (!yakin(sagDudak, solDudak, 6)) continue;
       const kulp = m.slice(sagI, i + 1);
       if (kulp.length < 4 || kulp.length > 25) continue;
       const kulpTepe = Math.max(...kulp.map((x) => x.y));
       const kulpYukseklik = kulpTepe / sagDudak - 1;
-      if (kulpYukseklik > yukseklik / 3 || kulpTepe > tepe - (tepe - sagDudak) * 0.5) continue;
+      // Ters kulp gerçek bir sıçrama olmalı (en az yüzde 2); sıçramasız düşüş "kulp" değil, süren düşüştür.
+      if (kulpYukseklik < 0.02 || kulpYukseklik > yukseklik / 3 || kulpTepe > tepe - (tepe - sagDudak) * 0.5) continue;
       const boyun = Math.min(solDudak, sagDudak);
       const kirildi = m[i].k < boyun;
+      // Kırılım taze olmalı: boyun altındaki ilk kapanış en çok 3 mum önce.
+      const ilkKirilim = kulp.findIndex((x) => x.k < boyun);
+      if (kirildi && kulp.length - 1 - ilkKirilim > 3) continue;
+      if (!kirildi && m[i].k < boyun * 0.97) continue;
       const kat = m[i].h / (hacimOrt(m, 20, i - 1) || 1);
       const boy = tepe - boyun;
       return eslesme(s, 'ters-fincan-kulp', '1d', kirildi ? 'sat' : 'izle', kirildi ? (kat >= 1.5 ? 80 : 60) : 55,

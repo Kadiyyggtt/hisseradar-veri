@@ -278,7 +278,7 @@ export const ucluTepeDip: Tarayici = {
     const p = pivotlar(m, 4);
     const r = rsi(kapanislar(m), 14);
     const i = m.length - 1;
-    const bant = (x: number, y: number, z: number) => { const ort = (x + y + z) / 3; return [x, y, z].every((v) => Math.abs(v / ort - 1) <= 0.03); };
+    const bant = (x: number, y: number, z: number) => { const ort = (x + y + z) / 3; return [x, y, z].every((v) => Math.abs(v / ort - 1) <= 0.02); };
     for (const pencere of [p.slice(-6, -1), p.slice(-5)]) {
       if (pencere.length < 5) continue;
       const [a, b, c, d, e] = pencere;
@@ -295,7 +295,7 @@ export const ucluTepeDip: Tarayici = {
         const rsiIyi = r[e.i] > r[a.i];
         const guven = 50 + (hacimArtti ? 10 : 0) + (rsiIyi ? 15 : 0) + (kirildi ? 20 : 0);
         return eslesme(s, 'uclu-tepe-dip', '1d', kirildi ? 'al' : 'izle', guven,
-          [`Üçlü dip: üç dip ${f2(a.fiyat)}, ${f2(c.fiyat)} ve ${f2(e.fiyat)} seviyelerinde, aralarındaki fark yüzde 3'ün altında. Aynı yerden üç kez dönüş: o bölgede alıcı var.`,
+          [`Üçlü dip: üç dip ${f2(a.fiyat)}, ${f2(c.fiyat)} ve ${f2(e.fiyat)} seviyelerinde, ortalamadan sapma yüzde 2'nin altında. Aynı yerden üç kez dönüş: o bölgede alıcı var.`,
            `Boyun çizgisi iki ara tepenin yükseği, ${f2(boyun)}. Formasyon boyu ${f2(boyun - taban)}.`,
            rsiIyi ? 'RSI üçüncü dipte ilk dipten yüksek: satış gücü azalıyor.' : 'RSI uyumsuzluğu yok.',
            kirildi ? 'Boyun çizgisi kapanışla aşıldı; alış şartı sağlandı.' : 'Boyun çizgisinin kırılması bekleniyor; üçüncü dipten dönüş tek başına giriş değildir.'],
@@ -309,7 +309,7 @@ export const ucluTepeDip: Tarayici = {
         const rsiIyi = r[e.i] < r[a.i];
         const guven = 50 + (hacimDustu ? 10 : 0) + (rsiIyi ? 15 : 0) + (kirildi ? 20 : 0);
         return eslesme(s, 'uclu-tepe-dip', '1d', kirildi ? 'sat' : 'izle', guven,
-          [`Üçlü tepe: üç tepe ${f2(a.fiyat)}, ${f2(c.fiyat)} ve ${f2(e.fiyat)} seviyelerinde, aralarındaki fark yüzde 3'ün altında. Aynı yerden üç kez geri çevrildi: orada satıcı var.`,
+          [`Üçlü tepe: üç tepe ${f2(a.fiyat)}, ${f2(c.fiyat)} ve ${f2(e.fiyat)} seviyelerinde, ortalamadan sapma yüzde 2'nin altında. Aynı yerden üç kez geri çevrildi: orada satıcı var.`,
            `Boyun çizgisi iki ara dibin alçağı, ${f2(boyun)}. Formasyon boyu ${f2(tavan - boyun)}.`,
            rsiIyi ? 'RSI üçüncü tepede ilk tepeden düşük: alış gücü azalıyor.' : 'RSI uyumsuzluğu yok.',
            kirildi ? 'Boyun çizgisi aşağı kırıldı; elde mal varsa çıkış yeri.' : 'Boyun çizgisinin kırılması bekleniyor; üçüncü tepe tek başına satış değildir.'],

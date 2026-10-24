@@ -28,9 +28,10 @@ function baglam(m: Mum[], i: number): { dususSonrasi: boolean; yukselisSonrasi: 
   const e20 = e[i - 1];
   const enDusuk10 = Math.min(...m.slice(i - 10, i).map((x) => x.d));
   const enYuksek10 = Math.max(...m.slice(i - 10, i).map((x) => x.y));
+  // İki şart birden: ortalamanın altında VE son 10 günün dibinde. Tek şart her gün onlarca "mum" üretiyordu (24 Ekim canlı: 64 çekiç).
   return {
-    dususSonrasi: m[i - 1].k < e20 || m[i].d <= enDusuk10,
-    yukselisSonrasi: m[i - 1].k > e20 || m[i].y >= enYuksek10,
+    dususSonrasi: m[i - 1].k < e20 && m[i].d <= enDusuk10,
+    yukselisSonrasi: m[i - 1].k > e20 && m[i].y >= enYuksek10,
     e20,
   };
 }
@@ -78,7 +79,7 @@ function cekicTara(s: Seriler) {
     const b = m[gun];
     const boy = b.y - b.d;
     const g = govde(b);
-    if (boy <= 0 || boy < ortGovde(m, gun) * 1.0) continue;
+    if (boy <= 0 || boy < ortGovde(m, gun) * 1.2) continue;
     const alt = altFitil(b);
     const ust = ustFitil(b);
     const cekic = alt >= 2 * Math.max(g, boy * 0.1) && ust <= boy * 0.15 && Math.min(b.a, b.k) >= b.d + boy * 0.6;
