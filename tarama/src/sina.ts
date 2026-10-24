@@ -1,11 +1,11 @@
-import type { Eslesme, Mum, Ortam, Seriler } from './tipler';
+import type { Eslesme, Mum, Ortam, Seriler, Sicil, SicilKayit, TaramaSonucu } from './tipler';
 import { aylik, dortSaatlik, haftalik } from './gostergeler/periyot';
 import { ema } from './gostergeler/ortalama';
 import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { TARAYICILAR } from './stratejiler';
-import { bildirimMetni, hedefBildirimMetni, hedefKonusu, TARAMA_ADLARI } from './bildirim-metin';
+import { bildirimMetni, haftalikOzet, hedefBildirimMetni, hedefKonusu, sabahBrifingi, TARAMA_ADLARI } from './bildirim-metin';
 import { hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
 import { ABD_HISSELER, BIST_HISSELER } from './veri/evren';
 import { gostergeler } from './calistir';
@@ -453,6 +453,36 @@ console.log('sicil');
   kontrol('doğrusal yükselişte MACD pozitif', !!duz && duz.macd > 0 && duz.rsi === 100, JSON.stringify(duz));
   const sabitSeri = gostergeler(sabit(120, 50));
   kontrol('sabit seride RSI 100 kuralı (kayıp sıfır) ve MACD 0', !!sabitSeri && sabitSeri.macd === 0 && sabitSeri.ema20 === 50 && sabitSeri.ema50 === 50, JSON.stringify(sabitSeri));
+}
+
+// BRİFİNG: sabah (yeni şartlar + güçlü adaylar) ve haftalık metinler; boş sonuçta da anlamlı cümle.
+{
+  const es = (sembol: string, taramaId: string, yon: 'al' | 'sat' | 'izle'): Eslesme => ({ sembol, piyasa: 'BIST', taramaId, yon, guven: 80, periyot: '1d', aciklama: [], t: 0, fiyat: 10 });
+  const sonuc: TaramaSonucu = { surum: 1, uretildi: 0, ortam: ORTAM, sayac: {}, taranan: { BIST: 1, ABD: 1, hatali: [] },
+    eslesmeler: [es('THYAO', 'bayrak', 'al'), es('THYAO', 'qm', 'al'), es('THYAO', 'ema200', 'al'), es('ASELS', 'bayrak', 'al'), es('SISE', 'qm', 'al'), es('SISE', 'ema200', 'al'), es('SISE', 'obo-tobo', 'al'), es('SISE', 'kama', 'sat'), es('GARAN', 'obo-tobo', 'sat')] };
+  const yeni = [es('THYAO', 'bayrak', 'al'), es('ASELS', 'bayrak', 'al'), es('ASELS', 'qm', 'al'), es('GARAN', 'obo-tobo', 'sat')];
+  const sb = sabahBrifingi(sonuc, yeni, Date.UTC(2026, 9, 26, 6, 45));
+  kontrol('sabah: başlık günü taşır', /Sabah brifingi · .*26 Ekim/.test(sb.baslik), sb.baslik);
+  kontrol('sabah: yeni şart tekil sayılır', sb.govde.startsWith('2 hissede yeni yükseliş şartı: THYAO, ASELS.'), sb.govde);
+  kontrol('sabah: yeni düşüş ve güçlü aday (SISE düşüş şartı olduğu için aday değil)', /1 hissede yeni düşüş şartı\. Güçlü aday 1: THYAO\./.test(sb.govde), sb.govde);
+  kontrol('sabah: en çok formasyon yeni şartlardan', /En çok görülen formasyon Bayrak ve Flama\./.test(sb.govde), sb.govde);
+  kontrol('sabah: endeks nabzı', /Endeks nabzı BIST olumlu, ABD olumlu\./.test(sb.govde));
+  const bos = sabahBrifingi({ ...sonuc, eslesmeler: [], ortam: { endeksNabzi: { XU100: null, SPX: { pozitif: false, ema8: 0, ema20: 1, t: 0 } } } }, []);
+  kontrol('sabah: boş günde sabır cümlesi ve veri yok', /yeni yükseliş şartı oluşmadı/.test(bos.govde) && /BIST veri yok, ABD olumsuz/.test(bos.govde) && /Sabırlı/.test(bos.govde), bos.govde);
+  const simdi = Date.UTC(2026, 9, 25, 15, 0);
+  const sn = Math.floor(simdi / 1000);
+  const kayit = (taramaId: string, sonucu: 'ulasti' | 'ulasmadi', gunOnce: number): SicilKayit => ({ sembol: 'X', piyasa: 'BIST', taramaId, giris: 10, hedef: 11, t: sn - 20 * 86400, sonuc: sonucu, bitis: sn - gunOnce * 86400 });
+  const sicil: Sicil = { surum: 1, uretildi: sn, sureGun: 30, enAz: 5, acik: [kayit('qm', 'ulasti', 0)], ozet: {},
+    kapali: [kayit('bayrak', 'ulasti', 1), kayit('bayrak', 'ulasti', 2), kayit('bayrak', 'ulasmadi', 3), kayit('qm', 'ulasmadi', 4), kayit('qm', 'ulasti', 12)] };
+  const ho = haftalikOzet({ ...sonuc, portfoy: { hafta: { tur: 'hafta', anahtar: '2026-H43', baslangic: 0, pozisyonlar: [{ sembol: 'THYAO', piyasa: 'BIST', taramaId: 'qm', giris: 1, girisT: 0, simdi: 1, getiri: 0.02 }], deger: 102.3 }, ay: null, yil: null, gecmis: [] } }, sicil, simdi);
+  kontrol('hafta: son 7 günde 4 kayıt, 2 hedef, 2 süresi dolan, yüzde 50', /Bu hafta 4 formasyon sonuçlandı: 2 hedefe ulaştı, 2 süresi doldu \(yüzde 50 isabet\)\./.test(ho.govde), ho.govde);
+  kontrol('hafta: en isabetli formasyon en az 3 kayıtla', /En isabetli formasyon Bayrak ve Flama: 3 kayıttan 2 hedef\./.test(ho.govde), ho.govde);
+  kontrol('hafta: hayali portföy +2,3', /haftayı \+2,3 ile artıda kapattı \(THYAO\)/.test(ho.govde), ho.govde);
+  kontrol('hafta: açık kayıt ve pazartesi sayısı (THYAO, ASELS, SISE)', /Açık karne kaydı 1\. Pazartesi için 3 hissede/.test(ho.govde), ho.govde);
+  kontrol('hafta: genç karne notu yok (süresi dolan var)', !/Karne yeni/.test(ho.govde));
+  const genc: Sicil = { ...sicil, acik: Array.from({ length: 50 }, () => kayit('qm', 'ulasti', 0)), kapali: [kayit('bayrak', 'ulasti', 1), kayit('qm', 'ulasti', 2)] };
+  kontrol('hafta: süresi dolan yoksa ve açık kayıt çoksa genç karne notu', /Karne yeni; süresi dolan kayıt henüz yok/.test(haftalikOzet(sonuc, genc, simdi).govde));
+  kontrol('hafta: sicil yoksa yine cümle', /sonuçlanan formasyon kaydı yok/.test(haftalikOzet(sonuc, null, simdi).govde));
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

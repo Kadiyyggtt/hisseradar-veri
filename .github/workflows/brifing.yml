@@ -1,0 +1,39 @@
+name: Brifing
+
+# Sabah brifingi hafta içi 09:45 TR (06:45 UTC), haftalık özet pazar 18:00 TR (15:00 UTC).
+# Son yayınlanmış tarama sonucunu okur; dosyaya yazmaz, yalnız bildirim gönderir.
+on:
+  schedule:
+    - cron: '45 6 * * 1-5'
+    - cron: '0 15 * * 0'
+  workflow_dispatch:
+    inputs:
+      tur:
+        description: 'sabah ya da hafta'
+        required: true
+        default: 'sabah'
+
+permissions:
+  contents: read
+
+jobs:
+  gonder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Tür
+        id: tur
+        run: |
+          if [ -n "${{ github.event.inputs.tur }}" ]; then echo "tur=${{ github.event.inputs.tur }}" >> "$GITHUB_OUTPUT";
+          elif [ "$(date -u +%u)" = "7" ]; then echo "tur=hafta" >> "$GITHUB_OUTPUT";
+          else echo "tur=sabah" >> "$GITHUB_OUTPUT"; fi
+      - name: Brifing gönder
+        run: npm run brifing -- ${{ steps.tur.outputs.tur }}
+        env:
+          FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}
