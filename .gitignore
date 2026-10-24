@@ -1,2 +1,6 @@
 node_modules/
 .DS_Store
+
+# Web vitrinin yazı tipi varlıkları node_modules adlı klasörde gelir; bu yol depoya girmeli.
+!docs/uygulama/assets/node_modules/
+!docs/uygulama/assets/node_modules/**
