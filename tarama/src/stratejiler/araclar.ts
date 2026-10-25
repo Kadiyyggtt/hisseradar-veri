@@ -23,7 +23,7 @@ export const heikinTeyit: Tarayici = {
   },
 };
 
-/** 4.2 — Haftalık Çift Onay: DMI +DI, -DI'yi yukarı kesti ve Fisher tetiği yukarı kesti (son 2 hafta). */
+/** 4.2 — Haftalık Çift Onay: DMI +DI, -DI'yı yukarı kesti ve Fisher tetiği yukarı kesti (son 2 hafta). */
 export const haftalikCiftOnay: Tarayici = {
   id: 'haftalik-cift-onay',
   tara(s) {

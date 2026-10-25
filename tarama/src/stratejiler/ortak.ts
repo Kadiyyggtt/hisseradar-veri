@@ -59,6 +59,12 @@ export function iyelikEki(n: number): string {
   return (unluyleBitiyor ? "'s" : "'") + ek;
 }
 
+/** Belirtme eki ("-ini/-ını/-unu/-ünü"): "yüzde 30'unu geri aldı". İyelik ekinin üstüne -n- ve aynı ünlü gelir. */
+export function belirtmeEki(n: number): string {
+  const iyelik = iyelikEki(n);
+  return iyelik + 'n' + iyelik.slice(-1);
+}
+
 /** Çizim noktası: mum sırası i → son mumdan geriye sayım. Fiyat iki ondalığa yuvarlanır. */
 export function nokta(m: Mum[], i: number, fiyat: number, ad: string): CizimNokta {
   return { g: Math.max(0, m.length - 1 - Math.round(i)), fiyat: Math.round(fiyat * 100) / 100, ad };

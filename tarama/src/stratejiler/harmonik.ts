@@ -75,8 +75,8 @@ function harmonikTara(s: Seriler, kalip: Kalip) {
   const yonAd = yukselis ? 'Yükseliş' : 'Düşüş';
   return eslesme(s, kalip.id, '1d', donus ? (yukselis ? 'al' : 'sat') : 'izle', guven,
     [`${yonAd} ${kalip.ad}: X ${f2(X.fiyat)}, A ${f2(A.fiyat)}, B ${f2(B.fiyat)}, C ${f2(C.fiyat)}, D ${f2(uc)}.`,
-     `B noktası XA bacağının ${yuzdeYaz(bOran)}${yuzdeEki(bOran)}ni geri aldı; C noktası AB'nin ${yuzdeYaz(cOran)}${yuzdeEki(cOran)}ni. İkisi de ${kalip.ad} oranlarında.`,
-     `D noktası XA'nın ${yuzdeYaz(dOran)}${yuzdeEki(dOran)}nde: dönüş bölgesi ${f2(dBolgeAlt)} ile ${f2(dBolgeUst)} arası${kalip.tasar ? ", X'in ötesinde" : ''}.`,
+     `B noktası XA bacağının ${yuzdeYaz(bOran)}${yuzdeEki(bOran)} geri aldı; C noktası AB'nin ${yuzdeYaz(cOran)}${yuzdeEki(cOran)}. İkisi de ${kalip.ad} oranlarında.`,
+     `D noktası XA'nın ${yuzdeYaz(dOran)} seviyesinde: dönüş bölgesi ${f2(dBolgeAlt)} ile ${f2(dBolgeUst)} arası${kalip.tasar ? ", X'in ötesinde" : ''}.`,
      donus ? `Son mum ${yukselis ? 'yukarı' : 'aşağı'} döndü. ${yukselis ? 'Alış' : 'Satış'} şartı sağlandı; stop ${f2(stop)}.` : 'Dönüş mumu bekleniyor; bölgeye gelmek tek başına giriş değildir.'],
     { 'D bölgesi': uc, 'Hedef 1 (AD %38,2)': hedef1, 'Hedef 2 (AD %61,8)': hedef2, [kalip.tasar ? 'Stop (D ötesi)' : 'Stop (X)']: stop },
     (() => {
