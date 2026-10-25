@@ -5,9 +5,15 @@ import type { Eslesme, HedefUlasan, Sicil, SicilKayit } from './tipler';
  * bir eşleşme ilk görüldüğü gün kayda girer (giriş fiyatı + ilk yukarı hedef),
  * sonraki taramalarda fiyat hedefe değdi mi diye bakılır. SURE_GUN içinde
  * değmezse "ulaşmadı" sayılır. Sonuç yalnız kapanan kayıtlardan hesaplanır.
+ *
+ * Özet (ozet) formasyon başına KÜMÜLATİF sayaçtır: her kapanış bir kez eklenir.
+ * Dosyadaki açık/kapalı diziler ise yalnız son KAYIT_GUN günü taşır (dosya şişmesin;
+ * eskiden "son 400 kapanış" penceresi hem özeti hem dosyayı belirliyordu).
  */
 export const SURE_GUN = 30;
 export const EN_AZ_SONUC = 5;
+/** sicil.json'daki kapalı kayıtların tutulduğu gün; "yeniden açılmasın" süzgeci de bu pencereye bakar. */
+export const KAYIT_GUN = 30;
 const GUN = 86400;
 
 /** Karneye girecek hedef fiyattan en az bu kadar uzak olmalı; daha yakını "ulaştı" sayımını şişirir (abcd-esnek yüzde 0,3'lük hedefle 10/10 çıkıyordu). */
@@ -23,16 +29,47 @@ export function ilkHedef(e: Eslesme): number | null {
   return ust.length ? ust[0] : null;
 }
 
+/** EN_AZ_HEDEF_ORANI eşiği konmadan önce girmiş kayıt (hedef girişin %1,5'inden yakın): karneyi %100 gösteriyordu. */
+export const esikAltiKayit = (k: SicilKayit) => !(Number.isFinite(k.hedef) && Number.isFinite(k.giris) && k.giris > 0 && k.hedef >= k.giris * EN_AZ_HEDEF_ORANI);
+
+export function ozetHesapla(kapali: SicilKayit[]): Sicil['ozet'] {
+  const ozet: Sicil['ozet'] = {};
+  for (const k of kapali) ozetEkle(ozet, k);
+  return ozet;
+}
+
+function ozetEkle(ozet: Sicil['ozet'], k: SicilKayit) {
+  const o = (ozet[k.taramaId] ??= { n: 0, ulasan: 0 });
+  o.n++;
+  if (k.sonuc === 'ulasti') o.ulasan++;
+}
+
 export function sicilIlerlet(onceki: Sicil | null, eslesmeler: Eslesme[], fiyatlar: Map<string, number>, simdi: number): Sicil {
-  const kapali = [...(onceki?.kapali ?? [])];
+  let oncekiAcik = onceki?.acik ?? [];
+  let oncekiKapali = onceki?.kapali ?? [];
+  // Özet kopyalanır: önceki nesne değişmesin (testler aynı sicilden iki dal yürütüyor).
+  let ozet: Sicil['ozet'] = Object.fromEntries(Object.entries(onceki?.ozet ?? {}).map(([id, o]) => [id, { ...o }]));
+  // Bir kerelik temizlik: eşik öncesi kayıtlar listelerden düşer, özet kalan kapanışlardan yeniden kurulur.
+  // Temizlikten sonra böyle kayıt oluşmaz (ilkHedef süzer); koşul bir daha tetiklenmez.
+  if (oncekiAcik.some(esikAltiKayit) || oncekiKapali.some(esikAltiKayit)) {
+    oncekiAcik = oncekiAcik.filter((k) => !esikAltiKayit(k));
+    oncekiKapali = oncekiKapali.filter((k) => !esikAltiKayit(k));
+    ozet = ozetHesapla(oncekiKapali);
+  }
+
+  const kapali = [...oncekiKapali];
   const acik: SicilKayit[] = [];
   const goruldu = new Set<string>();
 
-  for (const k of onceki?.acik ?? []) {
+  for (const k of oncekiAcik) {
     const f = fiyatlar.get(`${k.piyasa}:${k.sembol}`);
-    if (f !== undefined && f >= k.hedef) kapali.push({ ...k, sonuc: 'ulasti', bitis: simdi });
-    else if (simdi - k.t >= SURE_GUN * GUN) kapali.push({ ...k, sonuc: 'ulasmadi', bitis: simdi });
-    else acik.push(k);
+    let kapanan: SicilKayit | null = null;
+    if (f !== undefined && f >= k.hedef) kapanan = { ...k, sonuc: 'ulasti', bitis: simdi };
+    else if (simdi - k.t >= SURE_GUN * GUN) kapanan = { ...k, sonuc: 'ulasmadi', bitis: simdi };
+    if (kapanan) {
+      kapali.push(kapanan);
+      ozetEkle(ozet, kapanan);
+    } else acik.push(k);
   }
   for (const k of acik) goruldu.add(`${k.piyasa}:${k.sembol}:${k.taramaId}`);
   for (const k of kapali) if (simdi - (k.bitis ?? 0) < SURE_GUN * GUN) goruldu.add(`${k.piyasa}:${k.sembol}:${k.taramaId}`);
@@ -47,14 +84,8 @@ export function sicilIlerlet(onceki: Sicil | null, eslesmeler: Eslesme[], fiyatl
     acik.push({ sembol: e.sembol, piyasa: e.piyasa, taramaId: e.taramaId, giris: e.fiyat, hedef: h, t: simdi });
   }
 
-  // Kapanmış kayıtların yalnız son 400'ü tutulur (dosya şişmesin).
-  const son = kapali.slice(-400);
-  const ozet: Sicil['ozet'] = {};
-  for (const k of son) {
-    const o = (ozet[k.taramaId] ??= { n: 0, ulasan: 0 });
-    o.n++;
-    if (k.sonuc === 'ulasti') o.ulasan++;
-  }
+  // Dosyada yalnız son KAYIT_GUN günün kapanışları; özet bunlardan bağımsız, kümülatif.
+  const son = kapali.filter((k) => simdi - (k.bitis ?? 0) < KAYIT_GUN * GUN);
   return { surum: 1, uretildi: simdi, sureGun: SURE_GUN, enAz: EN_AZ_SONUC, acik, kapali: son, ozet };
 }
 

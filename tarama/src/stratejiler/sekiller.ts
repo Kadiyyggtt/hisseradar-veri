@@ -96,6 +96,8 @@ export const kama: Tarayici = {
     const altS = deger(alt, i);
     const kirildi = tur === 'alcalan' ? fiyat > ustS : fiyat < altS;
     const basi = tur === 'alcalan' ? k.tepeler[0].fiyat : k.dipler[0].fiyat;
+    // Dik kamada regresyon çizgisi sıfırın altına inebiliyor ya da hedef fiyatın katlarına çıkıyor: ölçüm anlamsız, eşleşme yok.
+    if (!(ustS > 0 && altS > 0 && deger(ust, k.bas) > 0 && deger(alt, k.bas) > 0) || basi > fiyat * 3) return null;
     return eslesme(s, 'kama', '1d', kirildi ? (tur === 'alcalan' ? 'al' : 'sat') : 'izle', kirildi ? 70 : 50,
       [`${tur === 'alcalan' ? 'Alçalan' : 'Yükselen'} kama: Dipler ve tepeler birlikte ${tur === 'alcalan' ? 'alçalıyor' : 'yükseliyor'}, çizgiler birbirine yaklaşıyor.`,
        kirildi ? `${tur === 'alcalan' ? 'Üst' : 'Alt'} çizgi kırıldı. ${tur === 'alcalan' ? 'Yükseliş' : 'Düşüş'} beklenir.` : 'Kırılım bekleniyor.',
@@ -157,7 +159,7 @@ export const bayrak: Tarayici = {
         [`Direk: ${bezBas - dipI} mumda ${f2(m[dipI].d)} seviyesinden ${f2(m[bezBas].k)} seviyesine yüzde ${(direk * 100).toFixed(0)} yükseliş.`,
          `Bez: ${bez} mum sürdü, derinliği yüzde ${(bezDerinlik * 100).toFixed(0)}. Hafif aşağı ya da yatay seyir.`,
          kirildi ? `Bezin üstü (${f2(bezUst)}) kapanışla aşıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.` : `${f2(bezUst)} seviyesinin kırılması bekleniyor.`,
-         'Klasik hedef direk boyudur. 1-2-3 döngüsündeki yerine bakmadan alınmaz.'],
+         'Klasik hedef direk boyudur. Kural, bayrağın 1-2-3 döngüsündeki yerine de bakar.'],
         { 'Bezin üstü': bezUst, 'Hedef (direk boyu)': bezUst + (m[bezBas].k - m[dipI].d) },
         { noktalar: [nokta(m, dipI, m[dipI].d, 'Direk'), nokta(m, bezBas, m[bezBas].k, 'Bez')], cizgiler: [cizgi(nokta(m, dipI, m[dipI].d, ''), nokta(m, bezBas, m[bezBas].k, ''), 'bacak'), cizgi(nokta(m, bezBas, bezUst, ''), nokta(m, i, bezUst, ''), 'boyun')] });
     }
@@ -256,15 +258,16 @@ export const tersFincanKulp: Tarayici = {
       return eslesme(s, 'ters-fincan-kulp', '1d', kirildi ? 'sat' : 'izle', kirildi ? (kat >= 1.5 ? 80 : 60) : 55,
         [`Ters fincan: ${uzunluk} mum süren yuvarlak tepe, yüksekliği yüzde ${(yukseklik * 100).toFixed(0)}. Tepe ${f2(tepe)} ortada, yani ters U biçiminde: aylar süren dağıtım.`,
          `Ters kulp: ${kulp.length} mum süren sığ bir sıçrama (yüzde ${(kulpYukseklik * 100).toFixed(0)}), fincanın alt yarısında kaldı. Boyun seviyesine son bir alıcı daha çekildi.`,
-         kirildi ? `Boyun çizgisi (${f2(boyun)}) kapanışla aşağı kırıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı. Elde mal varsa burası çıkış yeridir.` : `Boyun çizgisinin (${f2(boyun)}) aşağı kırılması bekleniyor; elde mal varsa stop boyundur.`],
-        { Boyun: boyun, 'Hedef (bir boy aşağı)': boyun - boy, 'Hedef (iki boy aşağı)': boyun - 2 * boy, 'Stop (kulp tepesi)': kulpTepe },
+         kirildi ? `Boyun çizgisi (${f2(boyun)}) kapanışla aşağı kırıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı. Kural kitabında bu kırılım çıkış seviyesi sayılır.` : `Boyun çizgisinin (${f2(boyun)}) aşağı kırılması bekleniyor. Kuralın stop seviyesi boyundur.`],
+        // Formasyon boyu boyundan büyükse "iki boy aşağı" sıfırın altına düşer: o seviye yazılmaz.
+        { Boyun: boyun, ...(boyun - boy > 0 ? { 'Hedef (bir boy aşağı)': boyun - boy } : {}), ...(boyun - 2 * boy > 0 ? { 'Hedef (iki boy aşağı)': boyun - 2 * boy } : {}), 'Stop (kulp tepesi)': kulpTepe },
         (() => { const kulpTepeI = sagI + kulp.reduce((en, x, j, a) => (x.y > a[en].y ? j : en), 0); const n = [nokta(m, bas, solDudak, 'Dudak'), nokta(m, tepeI, tepe, 'Tepe'), nokta(m, sagI, sagDudak, 'Dudak'), nokta(m, kulpTepeI, kulpTepe, 'Kulp')]; return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, bas, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
     }
     return null;
   },
 };
 
-/** 2.12 — Beş dalga: son 90 mumda en büyük dalganın ucu 1, sonra 2-3-4-5; 5'te al/sat bölgesi. */
+/** 2.12 — Beş dalga: son 90 mumda en büyük dalganın ucu 1, sonra 2-3-4-5; 5'te yükseliş/düşüş şartı aranır. */
 export const besDalga: Tarayici = {
   id: 'bes-dalga',
   tara(s) {
@@ -288,8 +291,8 @@ export const besDalga: Tarayici = {
     const w = bes.tur === dalga[0].tur;
     return eslesme(s, 'bes-dalga', '1d', 'izle', 55,
       [`${pozitif ? 'Pozitif' : 'Negatif'} sayım: 1 noktası ${f2(dalga[0].fiyat)} (en büyük dalga, yüzde ${(enBuyuk * 100).toFixed(0)}), 2 noktası ${f2(dalga[1].fiyat)}, 3 noktası ${f2(dalga[2].fiyat)}, 4 noktası ${f2(dalga[3].fiyat)}, 5 noktası ${f2(bes.fiyat)}.`,
-       `5 numaralı bölge oluştu. Burası ${pozitif ? 'al' : 'sat'} şartının aranacağı yerdir${w ? '. W ya da ters W ihtimali var, marj beklentisi yüksek' : ''}.`,
-       'Heikin Ashi teyidiyle giriş yapılır, ardından hemen ters sayım yapılır.'],
+       `5 numaralı bölge oluştu. Burası ${pozitif ? 'yükseliş' : 'düşüş'} şartının arandığı yer${w ? '. W ya da ters W ihtimali var, marj beklentisi yüksek' : ''}.`,
+       'Kural, Heikin Ashi teyit mumunu bekler; teyitten sonra sayım ters yönde yeniden başlar.'],
       { '5 noktası': bes.fiyat, '4 noktası': dalga[3].fiyat },
       (() => { const n = dalga.map((q, k) => nokta(m, q.i, q.fiyat, String(k + 1))); return { noktalar: n, cizgiler: bacaklar(n) }; })());
   },
@@ -319,11 +322,16 @@ export const abcdKlasik: Tarayici = {
     if (!dYakin) return null;
     const abSure = B.i - A.i;
     const cdSure = i - C.i;
+    // %127,2 ve %161,8 D'nin TAMAMLANMA bölgesidir (fiyat zaten orada); gerçek hedef dönüşte CD bacağının geri alımıdır.
+    const cd = C.fiyat - D.fiyat;
+    const ht1 = D.fiyat + cd * 0.382;
+    const ht2 = D.fiyat + cd * 0.618;
     return eslesme(s, 'abcd-klasik', '1d', dususABCD ? 'al' : 'sat', yakin(abSure, cdSure, 25) ? 70 : 55,
       [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: C noktası, A ile B arasının yüzde ${(c * 100).toFixed(1).replace('.', ',')}${belirtmeEki(Math.round(((c * 100) % 1) * 10) || Math.round(c * 100))} geri aldı. Bu, yüzde 61,8 ya da 78,6 kuralına uyuyor.`,
-       `D hedefleri: yüzde 127,2 için ${f2(h1)}, yüzde 161,8 için ${f2(h2)}. Fiyat hedef bölgesinde.`,
+       `D tamamlanma bölgesi: yüzde 127,2 için ${f2(h1)}, yüzde 161,8 için ${f2(h2)}. Fiyat bu bölgede.`,
+       `Dönüş gelirse hedefler CD bacağının geri alımıdır: yüzde 38,2 için ${f2(ht1)}, yüzde 61,8 için ${f2(ht2)}.`,
        `Zaman: A'dan B'ye ${abSure} mum, C'den D'ye ${cdSure} mum${yakin(abSure, cdSure, 25) ? '. AB eşittir CD zaman kuralı tutuyor.' : '.'}`],
-      { 'Yüzde 127,2 hedefi': h1, 'Yüzde 161,8 hedefi': h2 },
+      { 'D bölgesi (yüzde 127,2)': h1, 'D bölgesi (yüzde 161,8)': h2, 'Hedef 1 (CD %38,2 geri alımı)': ht1, 'Hedef 2 (CD %61,8)': ht2 },
       (() => { const n = [nokta(m, A.i, A.fiyat, 'A'), nokta(m, B.i, B.fiyat, 'B'), nokta(m, C.i, C.fiyat, 'C'), nokta(m, D.i, m[i].k, 'D')]; return { noktalar: n, cizgiler: bacaklar(n) }; })());
   },
 };

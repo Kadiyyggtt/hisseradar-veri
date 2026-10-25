@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { BRIFING_KONUSU, HAFTALIK_KONUSU, haftalikOzet, sabahBrifingi } from './bildirim-metin';
+import { BRIFING_KONUSU, HAFTALIK_KONUSU, haftalikOzet, sabahBrifingi, veriGuncelMi } from './bildirim-metin';
 import { erisimAnahtari, gonder, hesabiOku } from './fcm';
 import type { Eslesme, Sicil, TaramaSonucu } from './tipler';
 
@@ -21,14 +21,24 @@ async function main() {
   if (tur !== 'sabah' && tur !== 'hafta') throw new Error('kullanım: brifing.ts sabah | hafta');
   const sonuc = oku<TaramaSonucu>('sonuc.json');
   if (!sonuc) throw new Error('sonuc.json yok');
+  const simdi = Date.now();
+  if (!veriGuncelMi(sonuc.uretildi, Math.floor(simdi / 1000))) {
+    // Tarama düşmüş: günler önceki aday listesi bugünün brifingi gibi gitmesin. İş akışında uyarı olarak görünür.
+    console.log(`::warning::Veri güncel değil (son tarama ${new Date(sonuc.uretildi * 1000).toISOString()}); brifing gönderilmedi.`);
+    return;
+  }
   const yeni = oku<{ eslesmeler: Eslesme[] }>('yeni.json')?.eslesmeler ?? [];
-  const metin = tur === 'sabah' ? sabahBrifingi(sonuc, yeni) : haftalikOzet(sonuc, oku<Sicil>('sicil.json'));
+  const metin = tur === 'sabah' ? sabahBrifingi(sonuc, yeni, simdi) : haftalikOzet(sonuc, oku<Sicil>('sicil.json'), simdi);
   console.log(`${metin.baslik}\n${metin.govde}`);
   if (process.env.KURU) return;
   const hesap = hesabiOku();
   if (!hesap) { console.log('FCM_SERVIS_HESABI yok, gönderilmedi.'); return; }
   const anahtar = await erisimAnahtari(hesap);
-  await gonder(hesap, anahtar, tur === 'sabah' ? BRIFING_KONUSU : HAFTALIK_KONUSU, metin, { tur: tur === 'sabah' ? 'brifing' : 'haftalik' });
+  const tamam = await gonder(hesap, anahtar, tur === 'sabah' ? BRIFING_KONUSU : HAFTALIK_KONUSU, metin, { tur: tur === 'sabah' ? 'brifing' : 'haftalik' });
+  if (!tamam) {
+    console.error('Brifing gönderilemedi (1 başarısız).');
+    process.exitCode = 1;
+  }
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

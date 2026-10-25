@@ -32,6 +32,12 @@ async function main() {
   }
   const yeni = oku<{ uretildi: number; eslesmeler: Eslesme[] }>('yeni.json');
   if (!yeni) throw new Error('yeni.json yok; önce tarama koşmalı.');
+  // yeni.json bu koşunun değilse (hafta sonu koşusu boş farkla eskisini korur) aynı bildirim ikinci kez gitmesin.
+  const ozet = oku<{ uretildi: number }>('ozet.json');
+  if (ozet && ozet.uretildi !== yeni.uretildi) {
+    console.log('yeni.json bu koşudan değil; bildirim atlandı.');
+    return;
+  }
   const sinyaller = yeni.eslesmeler.filter((e) => e.yon === 'al' || e.yon === 'sat');
   // Hedef dosyası aynı koşudan olmalı; eski kalmışsa (deneme taraması) yeniden gönderilmez.
   const hedef = oku<HedefDosyasi>('hedef.json');
@@ -45,9 +51,12 @@ async function main() {
   // 1. Konu başına tek bildirim: "3 hisse Topuk Dönüşü stratejisine uydu: THYAO, SISE, EREGL."
   const konular = new Map<string, Eslesme[]>();
   for (const e of sinyaller) konular.set(e.taramaId, [...(konular.get(e.taramaId) ?? []), e]);
+  let gonderilen = 0;
+  let basarisiz = 0;
+  const say = (tamam: boolean) => (tamam ? gonderilen++ : basarisiz++);
   for (const [konu, liste] of konular) {
     const metin = bildirimMetni(konu, liste);
-    if (metin) await gonder(hesap, anahtar, konu, metin, { tur: 'eslesme', taramaId: konu });
+    if (metin) say(await gonder(hesap, anahtar, konu, metin, { tur: 'eslesme', taramaId: konu }));
   }
 
   // 2. Hisse başına tek bildirim: "THYAO 312,50 ₺ ile Topuk Dönüşü hedefine ulaştı."
@@ -59,8 +68,10 @@ async function main() {
   for (const liste of hisseler.values()) {
     const metin = hedefBildirimMetni(liste);
     const { piyasa, sembol } = liste[0];
-    if (metin) await gonder(hesap, anahtar, hedefKonusu(piyasa, sembol), metin, { tur: 'hedef', piyasa, sembol });
+    if (metin) say(await gonder(hesap, anahtar, hedefKonusu(piyasa, sembol), metin, { tur: 'hedef', piyasa, sembol }));
   }
+  console.log(`Bildirim: ${gonderilen} gönderildi, ${basarisiz} başarısız.`);
+  if (basarisiz) process.exitCode = 1;
 }
 
 main().catch((e) => {

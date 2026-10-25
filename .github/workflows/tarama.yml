@@ -1,14 +1,15 @@
 name: Tarama
 
-# Günde dört kez: BIST açılış (10:30 TR), BIST gün ortası (14:00 TR),
-# BIST kapanış (18:30 TR), ABD kapanış (23:30 TR). Hafta içi.
-# Saatler UTC; Türkiye UTC+3.
+# Günde dört kez, hafta içi: BIST açılış sonrası (10:17 TR), BIST gün ortası (13:47 TR),
+# BIST kapanış sonrası (18:17 TR), ABD kapanış sonrası (00:47 TR; ABD 16:00 ET kapanışı
+# yaz saatinde 20:00, kışın 21:00 UTC). Saatler UTC; Türkiye UTC+3.
+# Dakikalar 0/30'dan uzak: GitHub o dakikalarda kuyruğu dolduruyor, iş gecikiyor ya da düşüyor.
 on:
   schedule:
-    - cron: '30 7 * * 1-5'
-    - cron: '0 11 * * 1-5'
-    - cron: '30 15 * * 1-5'
-    - cron: '30 20 * * 1-5'
+    - cron: '17 7 * * 1-5'
+    - cron: '47 10 * * 1-5'
+    - cron: '17 15 * * 1-5'
+    - cron: '47 21 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -35,10 +36,6 @@ jobs:
         run: npm run tara
         env:
           ESZAMANLI: '3'
-      - name: Bildirim gönder
-        run: npm run bildir
-        env:
-          FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}
       - name: Sonucu depoya yaz
         run: |
           git config user.name "hisseradar-tarama"
@@ -52,3 +49,11 @@ jobs:
             sleep 10
           done
           echo "sonuç gönderilemedi" && exit 1
+      # Bildirim yayından SONRA: push düşerse iş burada durur, sonraki koşu aynı farkı yeniden
+      # bulup bildirir; önce gönderip sonra yayımlayamazsak aynı bildirim ikinci kez giderdi.
+      # FCM hatası taramanın başarısını bozmaz (sonuç zaten yayında).
+      - name: Bildirim gönder
+        continue-on-error: true
+        run: npm run bildir
+        env:
+          FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}

@@ -1,10 +1,10 @@
 name: Hisse sicili
 
-# Cumartesi 02:00 UTC: her hissenin son 500 gününde formasyonlar gün gün yeniden taranır,
+# Cumartesi 02:13 UTC (dakika 0/30'dan uzak, GitHub kuyruğu): her hissenin son 500 gününde formasyonlar gün gün yeniden taranır,
 # sonuç docs/tarama/hisse-sicil.json. Haftada bir yeter; günlük koşuyu yormasın.
 on:
   schedule:
-    - cron: '0 2 * * 6'
+    - cron: '13 2 * * 6'
   workflow_dispatch:
 
 permissions:

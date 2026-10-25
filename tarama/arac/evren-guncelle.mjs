@@ -15,6 +15,10 @@
  * Seçim kuralı (BIST): günlük ortalama ciro ≥ 30 milyon ₺ YA DA piyasa değeri
  * ≥ 10 milyar ₺. İşlem görmeyen (tedbirli, askıda) semboller veri kaynağında
  * görünmediği için kendiliğinden düşer. ABD listesi sabittir; yalnız adı çekilir.
+ *
+ * Yahoo süzgeci (tarama Yahoo'dan okur): her BIST adayı Yahoo'da sınanır. Yahoo'da
+ * olmayan (404: ALTIN, DMLKT gibi sertifikalar), türü hisse olmayan ya da 60'tan az
+ * günlük mumu olan (yeni halka arz) sembol listeye girmez; her koşuda "hatalı" sayılıyordu.
  */
 import { writeFileSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -25,6 +29,13 @@ const KOK = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const HEDEF = join(KOK, 'tarama', 'src', 'veri', 'evren.ts');
 const CIRO_ESIK = 30e6;
 const DEGER_ESIK = 10e9;
+/** Taramanın kısa geçmişli hisseyi grafiğe yazdığı alt sınır (tarama/src/veri/getir.ts EN_AZ_MUM ile aynı). */
+const EN_AZ_MUM = 60;
+/** TradingView'de "stock/common" görünen ama hisse olmayan semboller (altın ve gümüş sertifikaları). Yahoo süzgecine ek güvence. */
+const SERTIFIKA = new Set(['ALTIN', 'DMLKT']);
+/** Asılı kalan istek aracı kilitlemesin. */
+const ZAMAN_ASIMI_MS = 15000;
+const bekle = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const SEKTOR_TR = {
   'Commercial Services': 'Ticari Hizmetler', Communications: 'İletişim', 'Consumer Durables': 'Dayanıklı Tüketim',
@@ -49,6 +60,7 @@ async function tvTara(pazar, govde) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (HisseRadar evren)', Origin: 'https://www.tradingview.com', Referer: 'https://www.tradingview.com/' },
     body: JSON.stringify(govde),
+    signal: AbortSignal.timeout(ZAMAN_ASIMI_MS),
   });
   if (!c.ok) throw new Error(`TradingView ${pazar}: HTTP ${c.status}`);
   const j = await c.json();
@@ -64,7 +76,7 @@ const YAHOO_SEKTOR_TR = {
 };
 
 async function yahooAd(kod) {
-  const c = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(kod)}&quotesCount=3&newsCount=0`, { headers: { 'User-Agent': 'Mozilla/5.0 (HisseRadar evren)' } });
+  const c = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(kod)}&quotesCount=3&newsCount=0`, { headers: { 'User-Agent': 'Mozilla/5.0 (HisseRadar evren)' }, signal: AbortSignal.timeout(ZAMAN_ASIMI_MS) });
   if (!c.ok) return null;
   const j = await c.json();
   const q = (j.quotes ?? []).find((x) => x.symbol === kod && x.quoteType === 'EQUITY');
@@ -74,7 +86,7 @@ async function yahooAd(kod) {
 
 async function vikipediAdlari() {
   const url = "https://tr.wikipedia.org/w/api.php?action=parse&page=Borsa_%C4%B0stanbul%27da_i%C5%9Flem_g%C3%B6ren_%C5%9Firketler_listesi&prop=wikitext&format=json";
-  const c = await fetch(url, { headers: { 'User-Agent': 'HisseRadar evren guncelleyici (github.com/Kadiyyggtt/hisseradar-veri)' } });
+  const c = await fetch(url, { headers: { 'User-Agent': 'HisseRadar evren guncelleyici (github.com/Kadiyyggtt/hisseradar-veri)' }, signal: AbortSignal.timeout(ZAMAN_ASIMI_MS) });
   if (!c.ok) throw new Error(`Vikipedi: HTTP ${c.status}`);
   const metin = (await c.json()).parse?.wikitext?.['*'];
   if (typeof metin !== 'string') throw new Error('Vikipedi: beklenen biçim değil');
@@ -111,6 +123,60 @@ function sadelestir(ad) {
   return s.length >= 2 ? s : ad.trim();
 }
 
+/**
+ * Yahoo'da sembol sınaması: 'yok' (404 ya da boş), 'tip' (hisse değil), 'kisa' (EN_AZ_MUM'dan az geçerli mum),
+ * 'tamam'. Ağ hatası 'ag' döner ve sembol ELENMEZ (geçici kesinti listeyi boşaltmasın).
+ */
+async function yahooSina(kod) {
+  for (let deneme = 0; deneme < 3; deneme++) {
+    let c;
+    try {
+      c = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(kod)}.IS?interval=1d&range=1y`, { headers: { 'User-Agent': 'Mozilla/5.0 (HisseRadar evren)' }, signal: AbortSignal.timeout(ZAMAN_ASIMI_MS) });
+    } catch {
+      await bekle(1000 * (deneme + 1));
+      continue;
+    }
+    if (c.status === 404) return { durum: 'yok', mum: 0 };
+    if (c.status === 429 || c.status >= 500) { await bekle(1500 * (deneme + 1)); continue; }
+    if (!c.ok) return { durum: 'ag', mum: 0 };
+    const r = (await c.json().catch(() => null))?.chart?.result?.[0];
+    if (!r) return { durum: 'yok', mum: 0 };
+    const tip = r.meta?.instrumentType;
+    if (tip && tip !== 'EQUITY') return { durum: 'tip', mum: 0, tip };
+    const q = r.indicators?.quote?.[0] ?? {};
+    const mum = (r.timestamp ?? []).filter((_, i) => [q.open?.[i], q.high?.[i], q.low?.[i], q.close?.[i]].every((v) => typeof v === 'number' && v > 0)).length;
+    return { durum: mum < EN_AZ_MUM ? 'kisa' : 'tamam', mum };
+  }
+  return { durum: 'ag', mum: 0 };
+}
+
+/** Listeyi Yahoo'ya göre süz; 4 eşzamanlı istek (kaynağa nazik). */
+async function yahooSuz(liste) {
+  const elenen = [];
+  const kalan = [];
+  let sira = 0;
+  const isci = async () => {
+    while (sira < liste.length) {
+      const h = liste[sira++];
+      if (SERTIFIKA.has(h.kod)) { elenen.push(`${h.kod} (sertifika)`); continue; }
+      const s = await yahooSina(h.kod);
+      if (s.durum === 'yok') elenen.push(`${h.kod} (Yahoo'da yok)`);
+      else if (s.durum === 'tip') elenen.push(`${h.kod} (tür ${s.tip})`);
+      else if (s.durum === 'kisa') elenen.push(`${h.kod} (${s.mum} mum)`);
+      else {
+        if (s.durum === 'ag') console.warn(`${h.kod}: Yahoo sınanamadı, listede bırakıldı.`);
+        kalan.push(h);
+      }
+      await bekle(150);
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, isci));
+  // İşçiler sırayı karıştırır: ciro sırası korunsun.
+  const sirala = new Map(liste.map((h, i) => [h.kod, i]));
+  kalan.sort((a, b) => sirala.get(a.kod) - sirala.get(b.kod));
+  return { kalan, elenen };
+}
+
 function tsDizi(ad, liste) {
   const satirlar = liste.map((h) => `  { kod: '${h.kod}', ad: ${JSON.stringify(h.ad)}, sektor: ${JSON.stringify(h.sektor)} },`);
   return `export const ${ad}: Hisse[] = [\n${satirlar.join('\n')}\n];`;
@@ -140,6 +206,11 @@ async function main() {
     bist.push({ kod, ad: wiki.get(kod) ?? sadelestir(tvAd ?? kod), sektor: sektor(sek), ciro });
   }
   bist.sort((a, b) => b.ciro - a.ciro);
+  const { kalan: bistSuzulmus, elenen } = await yahooSuz(bist);
+  if (elenen.length) console.log(`Yahoo süzgecinde elenen ${elenen.length}: ${elenen.join(', ')}`);
+  if (bistSuzulmus.length < bist.length * 0.8) throw new Error(`Yahoo süzgeci listenin yüzde 20'sinden fazlasını eledi (${elenen.length}/${bist.length}); Yahoo kesintisi olabilir, dosya yazılmadı.`);
+  bist.length = 0;
+  bist.push(...bistSuzulmus);
 
   const usHarita = new Map(us.map((r) => [r.d[0], r.d]));
   const abd = [];

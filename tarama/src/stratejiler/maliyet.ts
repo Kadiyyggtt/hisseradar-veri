@@ -83,7 +83,7 @@ export const sahteCikis: Tarayici = {
     const satisMaliyeti = fib(dip, d.iki.fiyat, 0.618);
     if (m[i].k > satisMaliyeti) return null; // artık sahte çıkış değil
     return eslesme(s, 'sahte-cikis', '1d', 'al', 70,
-      [`Satış, maliyet bandında (${f2(maliyet)}) durdu ve fiyat ${i - uc} gündür yukarı dönüyor.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kâr stopu en az buraya konmalı.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
+      [`Satış, maliyet bandında (${f2(maliyet)}) durdu ve fiyat ${i - uc} gündür yukarı dönüyor.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kurala göre kâr stopu bu seviyeye çekilir.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
       { 'Yüzde 38,2 hedefi': hedef, 'Satış maliyeti': satisMaliyeti, 'Maliyet (yüzde 61,8)': maliyet });
   },
 };
@@ -108,7 +108,7 @@ export const yeniDongu: Tarayici = {
     return eslesme(s, 'yeni-dongu', '1d', 'al', kat >= 1.5 ? 85 : 55,
       [
         `3 noktası ${f2(uc.fiyat)} ile maliyete (${f2(maliyet)}) inmedi. Satış isteksiz.`,
-        gecti ? `${f2(satisMaliyeti)} satış maliyeti bugün geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Burası pozisyon artırma bölgesidir.`,
+        gecti ? `${f2(satisMaliyeti)} satış maliyeti bugün geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Kural kitabında bu bölge ekleme bölgesi sayılır.`,
         `Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı${kat >= 1.5 ? ', iştahlı bir geçiş.' : ', zayıf bir geçiş. İkili tepe riski var.'}`,
       ],
       { 'Satış maliyeti': satisMaliyeti, 'Zirve (2 noktası)': d.iki.fiyat, 'Maliyet (yüzde 61,8)': maliyet });
@@ -129,7 +129,7 @@ export const aySonu: Tarayici = {
         const pozitif = m[i].k > m[i].a;
         if (pozitif && yakin(m[i].k, maliyet, 6))
           return eslesme(s, 'ay-sonu-taramasi', '1mo', 'izle', 100,
-            [`Aylık 1-2-3 döngüsü: dip ${f2(p[j - 1].fiyat)}, tepe ${f2(p[j].fiyat)}, maliyet ${f2(maliyet)}.`, 'Son ay mumu pozitif kapattı ve fiyat maliyet bölgesinde.', 'Büyük plan gereği takip listesine alınmalı.'],
+            [`Aylık 1-2-3 döngüsü: dip ${f2(p[j - 1].fiyat)}, tepe ${f2(p[j].fiyat)}, maliyet ${f2(maliyet)}.`, 'Son ay mumu pozitif kapattı ve fiyat maliyet bölgesinde.', 'Büyük plana göre takip listesi adayı.'],
             { 'Aylık maliyet': maliyet });
         return null;
       }

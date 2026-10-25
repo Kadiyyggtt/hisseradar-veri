@@ -1,6 +1,11 @@
 import type { CizimCizgi, CizimNokta, Eslesme, EslesmeCizimi, Mum, Periyot, Seriler, Yon } from '../tipler';
 
-/** Eşleşme nesnesini tek yerden kur; kartın beklediği alanlar eksik kalmasın. */
+/**
+ * Eşleşme nesnesini tek yerden kur; kartın beklediği alanlar eksik kalmasın.
+ * Bozuk veride (son kapanış NaN, sıfır ya da eksi) eşleşme yok: uygulama sıfır
+ * fiyatlı kart göstermesin. Sıfır/eksi/sonsuz seviyeler atılır; "iki boy aşağı"
+ * gibi ölçümler küçük fiyatlı hissede sıfırın altına düşebiliyor (denetim: 44 kayıt).
+ */
 export function eslesme(
   s: Seriler,
   taramaId: string,
@@ -10,19 +15,36 @@ export function eslesme(
   aciklama: string[],
   seviyeler?: Record<string, number>,
   cizim?: EslesmeCizimi,
-): Eslesme {
+): Eslesme | null {
   const m = s[periyot];
   const son = m[m.length - 1];
+  if (!son || !Number.isFinite(son.k) || son.k <= 0 || !Number.isFinite(son.t)) return null;
+  if (!Number.isFinite(guven)) return null;
+  // Gerekçede NaN/Infinity çıkıyorsa ölçüm bozuk veriden gelmiştir (sıfır fiyatlı mum: "yüzde Infinity yükseliş").
+  if (aciklama.some((x) => /NaN|Infinity|undefined/.test(x))) return null;
+  let temiz: Record<string, number> | undefined;
+  if (seviyeler) {
+    temiz = {};
+    for (const [ad, v] of Object.entries(seviyeler)) if (Number.isFinite(v) && v > 0) temiz[ad] = v;
+  }
+  let temizCizim: EslesmeCizimi | undefined;
+  if (cizim) {
+    // Çizimde sıfır/eksi fiyatlı ya da sonlu olmayan uç varsa o parça çizilmez (grafik ekseni bozulmasın).
+    const gecerli = (q: CizimNokta) => Number.isInteger(q.g) && q.g >= 0 && q.g < m.length && Number.isFinite(q.fiyat) && q.fiyat > 0;
+    const noktalar = cizim.noktalar?.filter(gecerli);
+    const cizgiler = cizim.cizgiler?.filter((l) => gecerli(l.a) && gecerli(l.b));
+    if (noktalar?.length || cizgiler?.length) temizCizim = { ...cizim, ...(noktalar ? { noktalar } : {}), ...(cizgiler ? { cizgiler } : {}) };
+  }
   return {
-    ...(cizim ? { cizim } : {}),
+    ...(temizCizim ? { cizim: temizCizim } : {}),
     sembol: s.sembol,
     piyasa: s.piyasa,
     taramaId,
     yon,
-    guven: Math.round(guven),
+    guven: Math.max(0, Math.min(100, Math.round(guven))),
     periyot,
     aciklama,
-    seviyeler,
+    seviyeler: temiz,
     t: son.t,
     fiyat: son.k,
   };

@@ -4,9 +4,11 @@ import { ema } from './gostergeler/ortalama';
 import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
-import { TARAYICILAR } from './stratejiler';
-import { bildirimMetni, haftalikOzet, hedefBildirimMetni, hedefKonusu, sabahBrifingi, TARAMA_ADLARI } from './bildirim-metin';
-import { EN_AZ_HEDEF_ORANI, hedefeUlasanlar, ilkHedef, sicilIlerlet, SURE_GUN } from './sicil';
+import { enAzMum, TARAYICI_EN_AZ_MUM, TARAYICILAR } from './stratejiler';
+import { eslesme } from './stratejiler/ortak';
+import { bildirimMetni, haftaSonuMu, haftalikOzet, hedefBildirimMetni, hedefKonusu, sabahBrifingi, TARAMA_ADLARI, veriGuncelMi } from './bildirim-metin';
+import { EN_AZ_HEDEF_ORANI, esikAltiKayit, hedefeUlasanlar, ilkHedef, KAYIT_GUN, sicilIlerlet, SURE_GUN } from './sicil';
+import { hataTuru, VeriHatasi, yahooCoz } from './veri/yahoo';
 import { ABD_HISSELER, BIST_HISSELER } from './veri/evren';
 import { gostergeler } from './calistir';
 import { EN_COK_GUN, gecmisIlerlet, gunBasi } from './gecmis';
@@ -62,10 +64,12 @@ function cizimKontrol(ad: string, e: Eslesme | null) {
   kontrol(`${ad}: çizim 160 mumu aşmıyor`, n.every((q) => q.g <= 160), String(Math.max(...n.map((q) => q.g))));
 }
 
+/** Sınamalarda üretilen bütün eşleşmeler: sonda tavsiye dili ve bozuk değer taramasına girer. */
+const uretilen: Eslesme[] = [];
 const tarayici = (id: string) => {
   const t = TARAYICILAR.find((x) => x.id === id);
   if (!t) throw new Error(`tarayıcı yok: ${id}`);
-  return t;
+  return { ...t, tara: (s: Seriler, o: Ortam) => { const e = t.tara(s, o); if (e) uretilen.push(e); return e; } };
 };
 
 // Yardımcı dizi üreticileri
@@ -392,6 +396,9 @@ console.log('sicil');
 {
   const adsiz = TARAYICILAR.filter((t) => !TARAMA_ADLARI[t.id]).map((t) => t.id);
   kontrol('her tarayıcının bildirim adı var', adsiz.length === 0, adsiz.join(', '));
+  // Birebir: tarayıcısı olmayan konu adı (birlesik-123, endeks-nabzi) uygulamada "taranır" sanılmasın.
+  const fazla = Object.keys(TARAMA_ADLARI).filter((id) => !TARAYICILAR.some((t) => t.id === id));
+  kontrol('TARAMA_ADLARI anahtarları birebir tarayıcı kimlikleri (43)', fazla.length === 0 && Object.keys(TARAMA_ADLARI).length === TARAYICILAR.length && TARAYICILAR.length === 43, `fazla: ${fazla.join(', ')}; ${Object.keys(TARAMA_ADLARI).length}/${TARAYICILAR.length}`);
   const tek = bildirimMetni('topuk-donusu', [{ sembol: 'THYAO', yon: 'al' }]);
   kontrol('tek hisse: "X hissesi Y stratejisine uydu"', tek?.govde === 'THYAO hissesi Topuk Dönüşü stratejisine uydu. Yükseliş şartı sağlandı.', tek?.govde);
   const cok = bildirimMetni('wolfe', [{ sembol: 'A', yon: 'al' }, { sembol: 'B', yon: 'al' }, { sembol: 'C', yon: 'sat' }]);
@@ -479,7 +486,10 @@ console.log('sicil');
   const ho = haftalikOzet({ ...sonuc, portfoy: { hafta: { tur: 'hafta', anahtar: '2026-H43', baslangic: 0, pozisyonlar: [{ sembol: 'THYAO', piyasa: 'BIST', taramaId: 'qm', giris: 1, girisT: 0, simdi: 1, getiri: 0.02 }], deger: 102.3 }, ay: null, yil: null, gecmis: [] } }, sicil, simdi);
   kontrol('hafta: son 7 günde 4 kayıt, 2 hedef, 2 süresi dolan, yüzde 50', /Bu hafta 4 formasyon sonuçlandı: 2 hedefe ulaştı, 2 süresi doldu \(yüzde 50 isabet\)\./.test(ho.govde), ho.govde);
   kontrol('hafta: en isabetli formasyon en az 3 kayıtla', /En isabetli formasyon Bayrak ve Flama: 3 kayıttan 2 hedef\./.test(ho.govde), ho.govde);
-  kontrol('hafta: hayali portföy +2,3', /haftayı \+2,3 ile artıda kapattı \(THYAO\)/.test(ho.govde), ho.govde);
+  kontrol('hafta: hayali portföy "yüzde 2,3 artıda"', /haftayı yüzde 2,3 artıda kapattı \(THYAO\)/.test(ho.govde), ho.govde);
+  const portfoyle = (deger: number) => haftalikOzet({ ...sonuc, portfoy: { hafta: { tur: 'hafta', anahtar: '2026-H43', baslangic: 0, pozisyonlar: [], deger }, ay: null, yil: null, gecmis: [] } }, null, simdi).govde;
+  kontrol('hafta: portföy ekside "yüzde 6,5 ekside"', /haftayı yüzde 6,5 ekside kapattı/.test(portfoyle(93.5)), portfoyle(93.5));
+  kontrol('hafta: 99,96 "-0,0 ile ekside" değil "yatay"', /haftayı yatay kapattı/.test(portfoyle(99.96)) && !/-0,0/.test(portfoyle(99.96)), portfoyle(99.96));
   kontrol('hafta: açık kayıt ve pazartesi sayısı (THYAO, ASELS, SISE)', /Açık karne kaydı 1\. Pazartesi için 3 hissede/.test(ho.govde), ho.govde);
   kontrol('hafta: genç karne notu yok (süresi dolan var)', !/Karne yeni/.test(ho.govde));
   const genc: Sicil = { ...sicil, acik: Array.from({ length: 50 }, () => kayit('qm', 'ulasti', 0)), kapali: [kayit('bayrak', 'ulasti', 1), kayit('qm', 'ulasti', 2)] };
@@ -527,6 +537,226 @@ console.log('sicil');
   const hs3 = hisseSicili('T', 'BIST', mumla(b3, b3.map((_, i) => (i === 277 ? 1800 : 1000)), 0.004), GUNLUK_TARAYICILAR, 100, 30);
   kontrol('yeni kayıt açık, sayıma girmez', hs3.son.some((k) => k.taramaId === 'bayrak' && k.sonuc === 'acik') && !hs3.formasyon.bayrak);
   kontrol('düz seride kayıt yok', hisseSicili('T', 'BIST', mumla(sabit(400, 50)), GUNLUK_TARAYICILAR, 100, 30).son.length === 0);
+}
+
+// ABCD: %127/%161 ölçüleri D'nin tamamlanma bölgesidir ("D bölgesi"); karneye giren "Hedef" fiyatın üstünde olmalı.
+console.log('abcd: D bölgesi ve gerçek hedef');
+{
+  // Düşüş ABCD: A 120 tepe, B 100 dip, C %61,8 geri alım (112,36), D = C + (B-C)·1,272 ≈ 96,64; son mum D'de.
+  const A = 120; const B = 100; const C = B + (A - B) * 0.618; const D = C + (B - C) * 1.272;
+  const k = [...sabit(60, 104), ...dogrusal(15, 104, A), ...dogrusal(12, A, B), ...dogrusal(10, B, C), ...dogrusal(12, C, D)];
+  const s = seri(mumla(k, undefined, 0.002));
+  for (const id of ['abcd-esnek', 'abcd-klasik']) {
+    const e = tarayici(id).tara(s, ORTAM);
+    kontrol(`${id}: düşüş ABCD uymalı, yön al`, e !== null && e.yon === 'al', e ? e.yon + ' ' + JSON.stringify(e.seviyeler) : 'null');
+    if (!e?.seviyeler) continue;
+    const hedefler = Object.entries(e.seviyeler).filter(([ad]) => /hedef/i.test(ad));
+    kontrol(`${id}: "Hedef" adlı her seviye fiyatın en az yüzde 1,5 üstünde`, hedefler.length >= 2 && hedefler.every(([, v]) => v >= e.fiyat * EN_AZ_HEDEF_ORANI), JSON.stringify(hedefler) + ' fiyat ' + e.fiyat);
+    kontrol(`${id}: D tamamlanma ölçüleri "D bölgesi" adını taşır`, Object.keys(e.seviyeler).some((ad) => /^D bölgesi/.test(ad)), Object.keys(e.seviyeler).join(', '));
+    const h1 = ilkHedef(e);
+    kontrol(`${id}: karne hedefi CD'nin %38,2 geri alımı`, h1 !== null && Math.abs(h1 - (D + (C - D) * 0.382)) / h1 < 0.03, String(h1));
+  }
+}
+
+// eslesme(): bozuk fiyat ve seviye süzgeci.
+console.log('eslesme süzgeci');
+{
+  const g = mumla(dogrusal(30, 10, 20));
+  const bozukSon = [...g.slice(0, -1), { ...g[g.length - 1], k: 0 }];
+  kontrol('son kapanış 0 ise eşleşme yok', eslesme(seri(bozukSon), 'x', '1d', 'al', 50, ['a']) === null);
+  const nanSon = [...g.slice(0, -1), { ...g[g.length - 1], k: NaN }];
+  kontrol('son kapanış NaN ise eşleşme yok', eslesme(seri(nanSon), 'x', '1d', 'al', 50, ['a']) === null);
+  kontrol('boş seride eşleşme yok', eslesme(seri([]), 'x', '1d', 'al', 50, ['a']) === null);
+  const e = eslesme(seri(g), 'x', '1d', 'al', 50, ['a'], { Iyi: 5, Sifir: 0, Eksi: -3, Nan: NaN, Sonsuz: Infinity });
+  kontrol('sıfır, eksi, NaN, sonsuz seviyeler atılır', !!e && JSON.stringify(e.seviyeler) === '{"Iyi":5}', JSON.stringify(e?.seviyeler));
+  kontrol('gerekçede Infinity varsa eşleşme yok', eslesme(seri(g), 'x', '1d', 'al', 50, ['yüzde Infinity yükseliş']) === null);
+}
+
+// SİCİL: eşik öncesi kayıt temizliği, kümülatif özet, 30 günlük dosya penceresi.
+console.log('sicil temizliği ve kümülatif özet');
+{
+  const T0 = 1_800_000_000;
+  const kayit = (sembol: string, giris: number, hedef: number, sonuc?: 'ulasti' | 'ulasmadi', bitis?: number, taramaId = 'abcd-esnek'): SicilKayit =>
+    ({ sembol, piyasa: 'BIST', taramaId, giris, hedef, t: T0 - 5 * 86400, ...(sonuc ? { sonuc, bitis } : {}) });
+  kontrol('eşik altı: hedef girişe yüzde 1,5\'ten yakın', esikAltiKayit(kayit('A', 100, 100.3)) && !esikAltiKayit(kayit('A', 100, 101.5)));
+  const kirli: Sicil = {
+    surum: 1, uretildi: T0, sureGun: 30, enAz: 5,
+    acik: [kayit('A', 100, 100.3), kayit('B', 100, 110)],
+    kapali: [kayit('C', 100, 100.2, 'ulasti', T0), kayit('D', 100, 100.1, 'ulasti', T0), kayit('E', 100, 108, 'ulasmadi', T0), kayit('F', 100, 105, 'ulasti', T0, 'qm')],
+    ozet: { 'abcd-esnek': { n: 3, ulasan: 2 }, qm: { n: 1, ulasan: 1 } },
+  };
+  const t1 = sicilIlerlet(kirli, [], new Map(), T0 + 3600);
+  kontrol('eşik altı açık kayıt düşer', t1.acik.length === 1 && t1.acik[0].sembol === 'B', t1.acik.map((k) => k.sembol).join(','));
+  kontrol('eşik altı kapalı kayıt düşer', t1.kapali.length === 2 && t1.kapali.every((k) => !esikAltiKayit(k)), t1.kapali.map((k) => k.sembol).join(','));
+  kontrol('özet kalan kapanışlardan yeniden kurulur (abcd-esnek 1/0)', t1.ozet['abcd-esnek']?.n === 1 && t1.ozet['abcd-esnek']?.ulasan === 0 && t1.ozet.qm?.n === 1, JSON.stringify(t1.ozet));
+  const t2 = sicilIlerlet(t1, [], new Map([['BIST:B', 111]]), T0 + 7200);
+  kontrol('temizlik sonrası özet kümülatif artar', t2.ozet['abcd-esnek']?.n === 2 && t2.ozet['abcd-esnek']?.ulasan === 1, JSON.stringify(t2.ozet));
+  kontrol('önceki sicilin özeti değişmez', t1.ozet['abcd-esnek']?.n === 1);
+  const t3 = sicilIlerlet(t2, [], new Map(), T0 + (KAYIT_GUN + 1) * 86400);
+  kontrol('30 günü geçen kapanış dosyadan düşer, özette kalır', t3.kapali.length === 0 && t3.ozet['abcd-esnek']?.n === 2 && t3.ozet.qm?.n === 1, `${t3.kapali.length} ${JSON.stringify(t3.ozet)}`);
+  const ho = haftalikOzet({ surum: 1, uretildi: 0, ortam: ORTAM, sayac: {}, taranan: { BIST: 1, ABD: 1, hatali: [] }, eslesmeler: [] }, kirli, (T0 + 3600) * 1000);
+  kontrol('haftalık özet eşik altı kapanışları saymaz (2 kayıt: 1 hedef, 1 süresi doldu)', /Bu hafta 2 formasyon sonuçlandı: 1 hedefe ulaştı, 1 süresi doldu/.test(ho.govde) && /Açık karne kaydı 1\./.test(ho.govde), ho.govde);
+}
+
+// BRİFİNG TAZELİĞİ: tarama düşmüşse eski aday listesi gönderilmez; hafta sonu payı.
+console.log('brifing tazeliği');
+{
+  const sn = (y: number, ay: number, g: number, sa: number, dk = 0) => Math.floor(Date.UTC(y, ay, g, sa, dk) / 1000);
+  const cumaGece = sn(2026, 9, 23, 21, 47); // ABD kapanış taraması: 23 Ekim cuma 21:47 UTC = 24 Ekim cumartesi 00:47 TR
+  kontrol('pazartesi sabahı cuma gece taraması güncel', veriGuncelMi(cumaGece, sn(2026, 9, 26, 6, 45)));
+  kontrol('pazar akşamı haftalık için güncel', veriGuncelMi(cumaGece, sn(2026, 9, 25, 15, 3)));
+  kontrol('salı sabahı cuma taraması eski', !veriGuncelMi(cumaGece, sn(2026, 9, 27, 6, 45)));
+  kontrol('altı gün önceki tarama eski', !veriGuncelMi(sn(2026, 9, 20, 20, 0), sn(2026, 9, 26, 6, 45)));
+  kontrol('dün geceki tarama güncel', veriGuncelMi(sn(2026, 9, 26, 21, 47), sn(2026, 9, 27, 6, 45)));
+  kontrol('pazartesi sabahı cuma BIST kapanış taraması (15:17 UTC) güncel', veriGuncelMi(sn(2026, 9, 23, 15, 17), sn(2026, 9, 26, 6, 45)));
+  kontrol('çarşamba sabahı pazartesi taraması eski', !veriGuncelMi(sn(2026, 9, 26, 15, 17), sn(2026, 9, 28, 6, 45)));
+  kontrol('üretim zamanı yoksa güncel değil', !veriGuncelMi(0, sn(2026, 9, 27, 6, 45)));
+  kontrol('hafta sonu: cumartesi ve pazar İstanbul saatiyle', haftaSonuMu(sn(2026, 9, 24, 12)) && haftaSonuMu(sn(2026, 9, 25, 20, 59)) && !haftaSonuMu(sn(2026, 9, 25, 21, 1)) && !haftaSonuMu(sn(2026, 9, 23, 12)));
+}
+
+// 4 SAATLİK: seans günü iki eşit parçaya bölünür (9 mumlu BIST günü 4+4+1 olmasın).
+console.log('dört saatlik bölme');
+{
+  const gunMum = (gun: number, n: number): Mum[] => Array.from({ length: n }, (_, j) => ({ t: Date.UTC(2026, 9, 20 + gun, 7 + j) / 1000, a: 10 + j, y: 11 + j, d: 9 + j, k: 10.5 + j, h: 100 }));
+  const d9 = dortSaatlik(gunMum(0, 9));
+  kontrol('9 saatlik mum → 2 mum (5+4)', d9.length === 2 && d9[0].h === 500 && d9[1].h === 400, d9.map((m) => m.h).join('+'));
+  kontrol('8 saatlik mum → 4+4, açılış/kapanış doğru', (() => { const d = dortSaatlik(gunMum(0, 8)); return d.length === 2 && d[0].a === 10 && d[0].k === 13.5 && d[1].a === 14 && d[1].y === 18 && d[1].k === 17.5; })());
+  kontrol('7 saatlik (ABD) → 4+3', dortSaatlik(gunMum(0, 7)).map((m) => m.h).join('+') === '400+300');
+  kontrol('iki gün ayrı bölünür', dortSaatlik([...gunMum(0, 9), ...gunMum(1, 3)]).map((m) => m.h).join('+') === '500+400+200+100');
+  kontrol('boş seride boş', dortSaatlik([]).length === 0);
+}
+
+// VERİ KAYNAĞI: Yahoo cevabında null/sıfır alanlı mum atlanır; hata türü taşınır.
+console.log('yahoo çözümleme ve hata türü');
+{
+  const cevap = { chart: { result: [{ timestamp: [1, 2, 3, 4, 5], indicators: { quote: [{ open: [10, 10, 10, 10, 10], high: [11, null, 11, 11, 11], low: [9, 9, null, 0, 9], close: [10.5, 10.5, 10.5, 10.5, null], volume: [100, 100, null, 100, 100] }] } }] } };
+  const m = yahooCoz(cevap);
+  kontrol('null yüksek, null/sıfır düşük, null kapanış atlanır', m.length === 1 && m[0].t === 1, JSON.stringify(m));
+  kontrol('eksik gösterge alanında çökmez', yahooCoz({ chart: { result: [{ timestamp: [1] }] } }).length === 0 && yahooCoz({}).length === 0);
+  kontrol('hata türü taşınır', hataTuru(new VeriHatasi('kisa', 'x')) === 'kisa' && hataTuru(new Error('x')) === 'ag');
+}
+
+// FCM: bozuk gizli değerde sabit mesaj (ayrıştırıcı hatası gizli değerin parçasını günlüğe basmasın).
+{
+  const { hesabiOku } = require('./fcm') as typeof import('./fcm');
+  const eski = process.env.FCM_SERVIS_HESABI;
+  process.env.FCM_SERVIS_HESABI = Buffer.from('{"private_key":"GIZLI-PARCA",').toString('base64');
+  let mesaj = '';
+  try { hesabiOku(); } catch (h) { mesaj = (h as Error).message; }
+  kontrol('bozuk servis hesabı: sabit mesaj, gizli değer günlüğe düşmez', mesaj.startsWith('FCM_SERVIS_HESABI çözülemedi') && !mesaj.includes('GIZLI'), mesaj);
+  if (eski === undefined) delete process.env.FCM_SERVIS_HESABI; else process.env.FCM_SERVIS_HESABI = eski;
+}
+
+// RSI: düz seride nötr 50 (eskiden 100: "aşırı alım").
+{
+  kontrol('düz seride RSI 50', rsi(sabit(50, 10), 14).at(-1) === 50, String(rsi(sabit(50, 10), 14).at(-1)));
+  kontrol('yalnız yükselişte RSI 100 kalır', rsi(dogrusal(30, 10, 20), 14).at(-1) === 100);
+}
+
+// KISA GEÇMİŞ: tablodaki her kimlik gerçek bir tarayıcı; her biri kendi alt sınırında çökmez.
+console.log('kısa geçmiş tablosu');
+{
+  const ids = new Set(TARAYICILAR.map((t) => t.id));
+  const yabanci = Object.keys(TARAYICI_EN_AZ_MUM).filter((id) => !ids.has(id));
+  kontrol('kısa geçmiş tablosunda bilinmeyen kimlik yok', yabanci.length === 0, yabanci.join(', '));
+  kontrol('200 günlük ortalama isteyenler 250 bekler', enAzMum(tarayici('ema200')) === 250 && enAzMum(tarayici('fib-merdiveni')) === 250 && enAzMum(tarayici('yutan')) === 60);
+  const cokenler: string[] = [];
+  for (const t of TARAYICILAR) {
+    const n = enAzMum(t);
+    if (n >= 250) continue;
+    for (let r = 0; r < 20; r++) {
+      try { const e = t.tara(seri(mumla(dalga(n, 50, 5 + r, 15 + r))), ORTAM); if (e) uretilen.push(e); } catch (h) { cokenler.push(`${t.id}: ${(h as Error).message}`); break; }
+    }
+  }
+  kontrol('kısa seriye izinli tarayıcılar alt sınırda çökmez', cokenler.length === 0, cokenler.join(' | '));
+}
+
+// SENTETİK SERİ SINAMASI: uç durumlar + 3000 rastgele yürüyüş, her tarayıcı. Çökme, NaN, sıfır/eksi seviye,
+// bozuk çizim, uzun tire ve tavsiye dili aranır. (Denetimde 44 ters fincan eksi hedefi, düğüm/heikin çökmesi buradan çıktı.)
+console.log('sentetik seriler (3000 rastgele + uç durumlar)');
+{
+  let tohum = 1;
+  const rnd = () => { tohum = (tohum * 16807) % 2147483647; return tohum / 2147483647; };
+  const yuruyus = (n: number, bas = 100, oyn = 0.02, egilim = 0) => { const o: number[] = []; let v = bas; for (let i = 0; i < n; i++) { v *= 1 + egilim + (rnd() - 0.5) * 2 * oyn; o.push(v); } return o; };
+  const durumlar: [string, Mum[]][] = [
+    ['boş', []], ['tek mum', mumla([100])], ['iki mum', mumla([100, 101])], ['5 mum', mumla([1, 2, 3, 4, 5])],
+    ['30 mum', mumla(yuruyus(30))], ['100 mum', mumla(yuruyus(100))],
+    ['250 düz genliksiz', mumla(sabit(250, 50), undefined, 0)], ['800 düz genliksiz', mumla(sabit(800, 50), undefined, 0)], ['800 düz genlikli', mumla(sabit(800, 50))],
+    ['800 sıfır hacim', mumla(yuruyus(800), sabit(800, 0))],
+    ['800 NaN kapanış ortada', mumla(yuruyus(800).map((v, i) => (i === 700 ? NaN : v)))],
+    ['800 NaN son mum', mumla(yuruyus(800).map((v, i) => (i === 799 ? NaN : v)))],
+    ['800 NaN hacim', mumla(yuruyus(800), Array.from({ length: 800 }, (_, i) => (i % 50 === 0 ? NaN : 1000)))],
+    ['800 null yüksek', mumla(yuruyus(800)).map((m, i) => (i === 790 ? { ...m, y: null as unknown as number } : m))],
+    ['800 çok küçük fiyat', mumla(yuruyus(800, 0.01))],
+    ['800 çöküş %97', mumla([...yuruyus(700, 100, 0.01), ...Array.from({ length: 100 }, (_, i) => 100 * Math.pow(0.965, i))])],
+    ['800 tavan serisi', mumla([...yuruyus(700, 10, 0.01), ...Array.from({ length: 100 }, (_, i) => 10 * Math.pow(1.05, i))])],
+    ['800 sıfır fiyat arada', mumla(yuruyus(800).map((v, i) => (i > 780 && i < 785 ? 0 : v)))],
+  ];
+  const bulgu: Record<string, { n: number; ornek: string }> = {};
+  const not = (id: string, tur: string, ornek: string) => { const a = `${id} :: ${tur}`; (bulgu[a] ??= { n: 0, ornek }).n++; };
+  const say: Record<string, number> = {};
+  const denetle = (e: Eslesme, m: Mum[]) => {
+    const n = m.length;
+    say[e.taramaId] = (say[e.taramaId] ?? 0) + 1;
+    if (!Number.isFinite(e.fiyat) || e.fiyat <= 0) not(e.taramaId, 'fiyat bozuk', String(e.fiyat));
+    if (!Number.isInteger(e.guven) || e.guven < 0 || e.guven > 100) not(e.taramaId, 'güven aralık dışı', String(e.guven));
+    for (const [ad, v] of Object.entries(e.seviyeler ?? {})) if (!Number.isFinite(v) || v <= 0) not(e.taramaId, 'seviye sonlu değil ya da ≤ 0', `${ad}=${v}`);
+    const metin = e.aciklama.join(' | ');
+    if (/NaN|Infinity|undefined|null/.test(metin)) not(e.taramaId, 'gerekçede NaN', metin.slice(0, 120));
+    if (metin.includes('—')) not(e.taramaId, 'uzun tire', metin.slice(0, 120));
+    const c = e.cizim;
+    for (const q of [...(c?.noktalar ?? []), ...(c?.cizgiler ?? []).flatMap((l) => [l.a, l.b])]) {
+      if (!Number.isInteger(q.g) || q.g < 0 || q.g >= n) not(e.taramaId, 'çizim g bozuk', String(q.g));
+      if (!Number.isFinite(q.fiyat) || q.fiyat <= 0) not(e.taramaId, 'çizim fiyat bozuk', String(q.fiyat));
+    }
+    // Kama: iki çizgi de sıfırın üstünde (eslesme süzgeci düşürse çizgi eksik kalır) ve hedef fiyatın 3 katını aşmaz.
+    if (e.taramaId === 'kama') {
+      const h = e.seviyeler?.['Hedef (kamanın başı)'];
+      if ((c?.cizgiler?.length ?? 0) !== 2 || e.seviyeler?.['Alt çizgi'] === undefined || e.seviyeler?.['Üst çizgi'] === undefined) not('kama', 'çizgi sıfırın altında', JSON.stringify(e.seviyeler));
+      if (h !== undefined && h > e.fiyat * 3) not('kama', 'hedef fiyatın 3 katından uzak', `${h} / ${e.fiyat}`);
+    }
+    // Topuk noktası, dipten önceki en yüksek mumun ÜSTÜNDE durmalı (pencerenin ilk mumunda değil).
+    const topuk = e.taramaId === 'topuk-donusu' ? c?.noktalar?.find((q) => q.ad === 'Topuk') : undefined;
+    if (topuk && Math.abs(m[n - 1 - topuk.g].y - topuk.fiyat) > 0.006) not(e.taramaId, 'topuk noktası tepe mumunda değil', `g=${topuk.g} mum ${m[n - 1 - topuk.g].y} nokta ${topuk.fiyat}`);
+    // Wolfe 1-4 çizgisi son mumda bitiyor; 4 noktasından geçmeli (eskiden ucu 10 mum ilerinin değeriyle eğimi bozuyordu).
+    if (e.taramaId === 'wolfe' && c?.noktalar?.length === 5) {
+      const [w1, , , w4] = c.noktalar;
+      const hedefCizgisi = c.cizgiler?.at(-1);
+      if (hedefCizgisi && hedefCizgisi.a.ad === '1' && hedefCizgisi.b.g === 0 && w1.g !== 0) {
+        const f4 = w1.fiyat + ((hedefCizgisi.b.fiyat - w1.fiyat) * (w1.g - w4.g)) / w1.g;
+        if (Math.abs(f4 - w4.fiyat) > Math.max(0.03, w4.fiyat * 0.002)) not(e.taramaId, 'wolfe 1-4 çizgisi 4 noktasından geçmiyor', `${f4.toFixed(3)} ≠ ${w4.fiyat}`);
+      }
+    }
+  };
+  const calistir = (g: Mum[]) => {
+    const s = seri(g);
+    for (const t of TARAYICILAR) {
+      if (g.length < enAzMum(t) && g.length >= 60) continue; // canlı çalıştırıcı da kısa seride atlar
+      let e: Eslesme | null = null;
+      try { e = t.tara(s, ORTAM); } catch (h) { not(t.id, 'ÇÖKME', (h as Error).message); continue; }
+      if (e) { uretilen.push(e); denetle(e, s[e.periyot]); }
+    }
+  };
+  for (const [, g] of durumlar) calistir(g);
+  for (let r = 0; r < 3000; r++) {
+    const n = 260 + Math.floor(rnd() * 600);
+    const k = yuruyus(n, 0.5 + rnd() * 500, 0.005 + rnd() * 0.08, (rnd() - 0.5) * 0.004);
+    calistir(mumla(k, k.map(() => (rnd() < 0.05 ? 0 : Math.floor(rnd() * 1e6))), rnd() * 0.04));
+  }
+  const satirlar = Object.entries(bulgu).map(([a, { n, ornek }]) => `${n}× ${a} [${ornek}]`);
+  kontrol('sentetik: çökme, NaN, sıfır/eksi seviye, bozuk çizim yok', satirlar.length === 0, '\n    ' + satirlar.join('\n    '));
+  const eslesen = Object.keys(say).length;
+  kontrol('sentetik: tarayıcıların çoğu en az bir kez eşleşti (sınama gerçekten çalıştı)', eslesen >= TARAYICILAR.length - 3, `${eslesen}/${TARAYICILAR.length}`);
+}
+
+// TAVSİYE DİLİ: bütün sınamalarda üretilen gerekçeler (sentetik + yukarıdaki örnekler). Tarif dili: "kural ... sayar".
+{
+  const YASAK = /\b(al|sat) şartı|alış şartı|satış şartı|giriş yeri|çıkış yeri|alınmaz|konmalı|yapılır|alınmalı|pozisyon artır|elde mal varsa|olunmalı/i;
+  const bulunan = new Map<string, string>();
+  for (const e of uretilen) for (const c of e.aciklama) if (YASAK.test(c) && !bulunan.has(e.taramaId)) bulunan.set(e.taramaId, c);
+  const kapsanan = new Set(uretilen.map((e) => e.taramaId)).size;
+  kontrol(`tavsiye dili yok (${uretilen.length} eşleşme, ${kapsanan} tarayıcı)`, bulunan.size === 0, [...bulunan].map(([id, c]) => `${id}: ${c}`).join(' | '));
+  kontrol('tavsiye taraması bütün tarayıcıları kapsıyor', kapsanan === TARAYICILAR.length, TARAYICILAR.map((t) => t.id).filter((id) => !uretilen.some((e) => e.taramaId === id)).join(', '));
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

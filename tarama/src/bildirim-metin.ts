@@ -6,8 +6,8 @@
 export const TARAMA_ADLARI: Record<string, string> = {
   '123-dongusu': '1-2-3 Döngüsü', '200-sikismasi': '200 Sıkışması', 'abcd-esnek': 'Esnek ABCD', 'abcd-klasik': 'Klasik ABCD',
   'altin-kesisme': 'Altın Kesişme', 'ay-sonu-taramasi': 'Ay Sonu Taraması', 'aylik-5-10': 'Aylık 5 ve 10', bayrak: 'Bayrak ve Flama',
-  'bes-dalga': 'Beş Dalga', 'birlesik-123': 'Birleşik 1-2-3', dikdortgen: 'Dikdörtgen: Üç Temas Kutuyu Kurar', dugum: 'Düğüm 5-8-13-21',
-  'ema200-donus': '200 Günlük Geri Dönüş', ema200: '200 Günlük', 'endeks-nabzi': 'Endeks Nabzı', 'fib-merdiveni': 'Fibonacci Merdiveni',
+  'bes-dalga': 'Beş Dalga', dikdortgen: 'Dikdörtgen: Üç Temas Kutuyu Kurar', dugum: 'Düğüm 5-8-13-21',
+  'ema200-donus': '200 Günlük Geri Dönüş', ema200: '200 Günlük', 'fib-merdiveni': 'Fibonacci Merdiveni',
   'fincan-kulp': 'Fincan Kulp', 'haftalik-cift-onay': 'Haftalık Çift Onay', heikin: 'Heikin Ashi Teyit Mumu', 'hisse-8-89': 'Hisse 8/89',
   'ikili-tepe-dip': 'İkili Tepe ve İkili Dip', 'k-52-hafta': '52 Haftalık Zirve Kırılımı', 'k-dar-bayrak': 'Yüksek ve Dar Bayrak',
   kama: 'Kama ve Takoz', 'kuyruklu-w': 'Kuyruklu W', 'obo-tobo': 'OBO ve TOBO', qm: 'QM', 'rsi-uyumsuzluk': 'RSI Uyumsuzluğu',
@@ -18,6 +18,7 @@ export const TARAMA_ADLARI: Record<string, string> = {
   yutan: 'Yutan Mum', cekic: 'Çekiç ve Kayan Yıldız', 'sabah-yildizi': 'Sabah ve Akşam Yıldızı',
 };
 
+import { esikAltiKayit } from './sicil';
 import type { Eslesme, HedefUlasan, Sicil, TaramaSonucu } from './tipler';
 
 export interface BildirimMetni {
@@ -117,7 +118,8 @@ export function sabahBrifingi(sonuc: TaramaSonucu, yeni: Eslesme[], simdi = Date
  */
 export function haftalikOzet(sonuc: TaramaSonucu, sicil: Sicil | null, simdi = Date.now()): BildirimMetni {
   const haftaOnce = Math.floor(simdi / 1000) - 7 * 86400;
-  const kapanan = (sicil?.kapali ?? []).filter((k) => (k.bitis ?? 0) >= haftaOnce);
+  // Eşik öncesinden kalmış kayıt (hedef girişe yüzde 1,5'ten yakın) sayılmaz: 61/61 "isabet" böyle çıkıyordu.
+  const kapanan = (sicil?.kapali ?? []).filter((k) => (k.bitis ?? 0) >= haftaOnce && !esikAltiKayit(k));
   const ulasan = kapanan.filter((k) => k.sonuc === 'ulasti').length;
   const basari = new Map<string, { n: number; u: number }>();
   for (const k of kapanan) { const o = basari.get(k.taramaId) ?? { n: 0, u: 0 }; o.n++; if (k.sonuc === 'ulasti') o.u++; basari.set(k.taramaId, o); }
@@ -126,10 +128,38 @@ export function haftalikOzet(sonuc: TaramaSonucu, sicil: Sicil | null, simdi = D
   if (kapanan.length) parcalar.push(`Bu hafta ${sayac(kapanan.length, 'formasyon')} sonuçlandı: ${ulasan} hedefe ulaştı, ${kapanan.length - ulasan} süresi doldu (yüzde ${Math.round((ulasan * 100) / kapanan.length)} isabet).`);
   else parcalar.push('Bu hafta sonuçlanan formasyon kaydı yok.');
   // Karne 30 günden gençse süresi dolan kayıt henüz yoktur; yüzde yanıltmasın.
-  if (sicil && kapanan.length && !kapanan.some((k) => k.sonuc === 'ulasmadi') && sicil.acik.length > kapanan.length) parcalar.push('Karne yeni; süresi dolan kayıt henüz yok, oran zamanla oturacak.');
+  if (sicil && kapanan.length && !kapanan.some((k) => k.sonuc === 'ulasmadi') && sicil.acik.filter((k) => !esikAltiKayit(k)).length > kapanan.length) parcalar.push('Karne yeni; süresi dolan kayıt henüz yok, oran zamanla oturacak.');
   if (enIyi) parcalar.push(`En isabetli formasyon ${TARAMA_ADLARI[enIyi[0]] ?? enIyi[0]}: ${enIyi[1].n} kayıttan ${enIyi[1].u} hedef.`);
   const hafta = sonuc.portfoy?.hafta;
-  if (hafta) parcalar.push(`Hayali portföy haftayı ${hafta.deger >= 100 ? '+' : ''}${(hafta.deger - 100).toFixed(1).replace('.', ',')} ile ${hafta.deger >= 100 ? 'artıda' : 'ekside'} kapattı (${hafta.pozisyonlar.map((p) => p.sembol).join(', ')}).`);
-  parcalar.push(`Açık karne kaydı ${sicil?.acik.length ?? 0}. Pazartesi için ${new Set(sonuc.eslesmeler.filter((e) => e.yon === 'al').map((e) => e.sembol)).size} hissede yükseliş şartı duruyor.`);
+  if (hafta) {
+    // "yüzde 6,5 ekside"; yuvarlanınca sıfırsa "yatay" (eski metin "-0,0 ile ekside" yazıyordu).
+    const fark = Math.round((hafta.deger - 100) * 10) / 10;
+    const durum = fark === 0 ? 'yatay' : `yüzde ${Math.abs(fark).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${fark > 0 ? 'artıda' : 'ekside'}`;
+    parcalar.push(`Hayali portföy haftayı ${durum} kapattı (${hafta.pozisyonlar.map((p) => p.sembol).join(', ')}).`);
+  }
+  parcalar.push(`Açık karne kaydı ${(sicil?.acik ?? []).filter((k) => !esikAltiKayit(k)).length}. Pazartesi için ${new Set(sonuc.eslesmeler.filter((e) => e.yon === 'al').map((e) => e.sembol)).size} hissede yükseliş şartı duruyor.`);
   return { baslik: 'Haftalık özet', govde: parcalar.join(' ') };
 }
+
+const SAAT = 3600;
+/** İstanbul takvim günü (UTC+3, yaz saati yok) ve haftanın günü (0 pazar, 6 cumartesi). */
+const istGun = (sn: number) => Math.floor((sn + 3 * SAAT) / 86400);
+const haftaGunu = (gun: number) => (gun + 4) % 7; // 1 Ocak 1970 perşembe
+
+/**
+ * Brifingin dayandığı tarama taze mi: 24 saat, araya giren her hafta sonu günü için 24 saat
+ * daha (cuma gece taraması pazartesi sabahı ve pazar akşamı geçerli). Tarama günlerce
+ * düşmüşse eski "güçlü aday" listesi yeni gibi gönderilmesin.
+ */
+export function veriGuncelMi(uretildi: number, simdiSn: number): boolean {
+  if (!Number.isFinite(uretildi) || uretildi <= 0) return false;
+  const yas = simdiSn - uretildi;
+  if (yas < 0) return true;
+  let haftaSonu = 0;
+  // Başlangıç günü de sayılır: ABD kapanış taraması (21:47 UTC) İstanbul'da cumartesiye düşer.
+  for (let g = istGun(uretildi); g <= istGun(simdiSn); g++) if (haftaGunu(g) === 0 || haftaGunu(g) === 6) haftaSonu++;
+  return yas <= (24 + 24 * haftaSonu) * SAAT;
+}
+
+/** İstanbul'a göre cumartesi ya da pazar mı (piyasa kapalı, tarama verisi değişmez). */
+export const haftaSonuMu = (sn: number) => { const g = haftaGunu(istGun(sn)); return g === 0 || g === 6; };

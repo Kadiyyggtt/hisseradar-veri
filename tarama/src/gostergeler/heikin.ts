@@ -10,6 +10,8 @@ export interface HeikinMum extends Mum {
 export function heikin(m: Mum[]): HeikinMum[] {
   const out: HeikinMum[] = [];
   for (let i = 0; i < m.length; i++) {
+    // Bozuk mum (NaN/sıfır) zinciri zehirler: Heikin açılışı bir öncekinden türer. Kalan seri o mumdan önce kesilir.
+    if (![m[i].a, m[i].y, m[i].d, m[i].k].every((v) => Number.isFinite(v) && v > 0)) break;
     const k = (m[i].a + m[i].y + m[i].d + m[i].k) / 4;
     const a = i === 0 ? (m[0].a + m[0].k) / 2 : (out[i - 1].a + out[i - 1].k) / 2;
     const y = Math.max(m[i].y, a, k);

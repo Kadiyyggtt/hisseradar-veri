@@ -63,7 +63,7 @@ function yutanTara(s: Seriler) {
     return eslesme(s, 'yutan', '1d', teyit ? (bogaYutan ? 'al' : 'sat') : 'izle', guven,
       [`${bogaYutan ? 'Boğa' : 'Ayı'} yutan mum${teyitli ? ' (dün)' : ' (bugün)'}: ${bogaYutan ? 'kırmızı' : 'yeşil'} mumun ardından gövdesi onu iki uçtan saran ${bogaYutan ? 'yeşil' : 'kırmızı'} mum. Gövde önceki gövdenin ${(bg / og).toFixed(1).replace('.', ',')} katı, son 10 günün ortalamasının ${(bg / ortGovde(m, gun)).toFixed(1).replace('.', ',')} katı.`,
        `Bağlam: ${bogaYutan ? 'düşüş sonrası' : 'yükseliş sonrası'}; fiyat EMA 20 (${f2(e20)}) ${m[gun - 1].k < e20 ? 'altında' : 'üstünde'}. Hacim 20 günlük ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.`,
-       teyit ? `Bugün ${bogaYutan ? 'yutan mumun üstünde' : 'yutan mumun altında'} kapanış geldi: Teyit tamam, ${bogaYutan ? 'alış' : 'satış'} şartı sağlandı.` : 'Teyit bekleniyor: Yarın kalıbın yönünde kapanış gelmeli. Tek mumla pozisyon açılmaz.',
+       teyit ? `Bugün ${bogaYutan ? 'yutan mumun üstünde' : 'yutan mumun altında'} kapanış geldi: Teyit tamam, ${bogaYutan ? 'yükseliş' : 'düşüş'} şartı sağlandı.` : 'Teyit bekleniyor: Kural, ertesi gün kalıbın yönünde kapanış ister; tek mum yeterli sayılmaz.',
        `Stop ${bogaYutan ? 'yutan mumun dibi' : 'yutan mumun tepesi'} ${f2(bogaYutan ? b.d : b.y)}; hedef mum boyunun (${f2(boy)}) bir ve iki katı.`],
       { [bogaYutan ? 'Stop (mum dibi)' : 'Stop (mum tepesi)']: bogaYutan ? b.d : b.y, 'Hedef 1 (bir boy)': b.k + yon * boy, 'Hedef 2 (iki boy)': b.k + yon * 2 * boy });
   }
@@ -97,7 +97,7 @@ function cekicTara(s: Seriler) {
     return eslesme(s, 'cekic', '1d', teyit ? (cekic ? 'al' : 'sat') : 'izle', guven,
       [`${cekic ? 'Çekiç' : 'Kayan yıldız'}${teyitli ? ' (dün)' : ' (bugün)'}: ${cekic ? 'alt' : 'üst'} fitil ${f2(fitil)}, gövdenin ${g > 0 ? (fitil / g).toFixed(1).replace('.', ',') : '∞'} katı; karşı fitil neredeyse yok. Gövde mumun ${cekic ? 'üst' : 'alt'} ucunda.`,
        `Bağlam: ${cekic ? 'Düşüşün dibinde, gün içi satış geldi ama kapanış yukarıda tutuldu' : 'Yükselişin tepesinde, gün içi alış geldi ama kapanış aşağıda kaldı'}. Hacim 20 günlük ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.`,
-       teyit ? `Bugün ${cekic ? 'çekicin tepesinin üstünde' : 'yıldızın dibinin altında'} kapanış: Teyit tamam, ${cekic ? 'alış' : 'satış'} şartı sağlandı.` : `Teyit bekleniyor: Yarın ${cekic ? 'çekicin tepesi' : 'yıldızın dibi'} (${f2(cekic ? b.y : b.d)}) kapanışla geçilmeli.`,
+       teyit ? `Bugün ${cekic ? 'çekicin tepesinin üstünde' : 'yıldızın dibinin altında'} kapanış: Teyit tamam, ${cekic ? 'yükseliş' : 'düşüş'} şartı sağlandı.` : `Teyit bekleniyor: Yarın ${cekic ? 'çekicin tepesi' : 'yıldızın dibi'} (${f2(cekic ? b.y : b.d)}) kapanışla geçilmeli.`,
        `Stop ${cekic ? 'fitilin dibi' : 'fitilin tepesi'} ${f2(cekic ? b.d : b.y)}; hedef mum boyunun bir ve iki katı.`],
       { [cekic ? 'Stop (fitil dibi)' : 'Stop (fitil tepesi)']: cekic ? b.d : b.y, 'Hedef 1 (bir boy)': (cekic ? b.y : b.d) + yon * boy, 'Hedef 2 (iki boy)': (cekic ? b.y : b.d) + yon * 2 * boy });
   }
@@ -133,7 +133,7 @@ function sabahYildiziTara(s: Seriler) {
   return eslesme(s, 'sabah-yildizi', '1d', sabah ? 'al' : 'sat', guven,
     [`${sabah ? 'Sabah' : 'Akşam'} yıldızı: ${sabah ? 'Uzun kırmızı' : 'Uzun yeşil'} mum (gövde ortalamanın ${(g1 / ort).toFixed(1).replace('.', ',')} katı), ardından küçük gövdeli yıldız (ilk gövdenin yüzde ${yildizYuzde}${iyelikEki(yildizYuzde)}), sonra ${sabah ? 'yeşil' : 'kırmızı'} mum ilk mumun ortasını (${f2(orta1)}) ${sabah ? 'yukarı' : 'aşağı'} geçti${tamGeri ? ' ve ilk mumu tamamen geri aldı' : ''}.`,
      `Bağlam: ${sabah ? 'düşüş sonrası' : 'yükseliş sonrası'}; ilk mum öncesi kapanış EMA 20 (${f2(e20)}) ${m[i - 3].k < e20 ? 'altında' : 'üstünde'}. Üçüncü mumun hacmi 20 günlük ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.`,
-     `Üç mum tamamlandığı için kalıp kendi teyidini içerir: ${sabah ? 'Alış' : 'Satış'} şartı sağlandı. Stop ${sabah ? 'yıldızın dibi' : 'yıldızın tepesi'} ${f2(sabah ? dip : tepe)}.`,
+     `Üç mum tamamlandığı için kalıp kendi teyidini içerir: ${sabah ? 'Yükseliş' : 'Düşüş'} şartı sağlandı. Stop ${sabah ? 'yıldızın dibi' : 'yıldızın tepesi'} ${f2(sabah ? dip : tepe)}.`,
      `Hedef: Üç mumun toplam boyu (${f2(boy)}) üçüncü mumun kapanışına eklenir; ikinci hedef iki boy.`],
     { [sabah ? 'Stop (yıldız dibi)' : 'Stop (yıldız tepesi)']: sabah ? dip : tepe, 'Hedef 1 (bir boy)': m3.k + yon * boy, 'Hedef 2 (iki boy)': m3.k + yon * 2 * boy });
 }

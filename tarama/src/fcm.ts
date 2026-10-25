@@ -8,10 +8,21 @@ import type { BildirimMetni } from './bildirim-metin';
  */
 export type Hesap = { project_id: string; client_email: string; private_key: string; token_uri: string };
 
+/** Asılı kalan istek iş akışını (10 dk sınırı) yemesin. */
+const ZAMAN_ASIMI_MS = 15000;
+
 export function hesabiOku(): Hesap | null {
   const ham = process.env.FCM_SERVIS_HESABI;
   if (!ham) return null;
-  return JSON.parse(Buffer.from(ham, 'base64').toString('utf8')) as Hesap;
+  let h: Partial<Hesap>;
+  try {
+    h = JSON.parse(Buffer.from(ham, 'base64').toString('utf8')) as Partial<Hesap>;
+  } catch {
+    // Sabit mesaj: ayrıştırıcı hatası gizli değerin bir parçasını günlüğe basabilir.
+    throw new Error('FCM_SERVIS_HESABI çözülemedi: base64 kodlu servis hesabı JSON bekleniyor.');
+  }
+  if (!h.project_id || !h.client_email || !h.private_key || !h.token_uri) throw new Error('FCM_SERVIS_HESABI eksik alan içeriyor (project_id, client_email, private_key, token_uri).');
+  return h as Hesap;
 }
 
 const b64 = (s: string) => Buffer.from(s).toString('base64url');
@@ -32,13 +43,15 @@ export async function erisimAnahtari(hesap: Hesap): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    signal: AbortSignal.timeout(ZAMAN_ASIMI_MS),
   });
   const j = (await c.json()) as { access_token?: string; error?: string };
   if (!j.access_token) throw new Error(`erişim anahtarı alınamadı: ${j.error}`);
   return j.access_token;
 }
 
-export async function gonder(hesap: Hesap, anahtar: string, konu: string, metin: BildirimMetni, veri: Record<string, string>): Promise<void> {
+/** Konuya tek mesaj. Başarılıysa true; hata fırlatmaz (bir konunun düşmesi ötekileri durdurmasın), çağıran sayar. */
+export async function gonder(hesap: Hesap, anahtar: string, konu: string, metin: BildirimMetni, veri: Record<string, string>): Promise<boolean> {
   const govde = {
     message: {
       topic: konu,
@@ -50,10 +63,17 @@ export async function gonder(hesap: Hesap, anahtar: string, konu: string, metin:
       apns: { payload: { aps: { sound: 'default', 'thread-id': konu } } },
     },
   };
-  const c = await fetch(`https://fcm.googleapis.com/v1/projects/${hesap.project_id}/messages:send`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${anahtar}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(govde),
-  });
-  console.log(konu, c.status, c.ok ? 'gönderildi' : await c.text());
+  try {
+    const c = await fetch(`https://fcm.googleapis.com/v1/projects/${hesap.project_id}/messages:send`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${anahtar}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(govde),
+      signal: AbortSignal.timeout(ZAMAN_ASIMI_MS),
+    });
+    console.log(konu, c.status, c.ok ? 'gönderildi' : await c.text());
+    return c.ok;
+  } catch (e) {
+    console.error(konu, 'gönderilemedi:', (e as Error).name === 'TimeoutError' ? 'zaman aşımı' : (e as Error).message);
+    return false;
+  }
 }

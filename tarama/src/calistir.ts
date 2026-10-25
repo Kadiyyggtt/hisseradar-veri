@@ -11,9 +11,11 @@ import type { Sicil } from './tipler';
 import { ema } from './gostergeler/ortalama';
 import { rsi } from './gostergeler/rsi';
 import { ortamiOlc } from './ortam';
-import { TARAYICILAR } from './stratejiler';
+import { enAzMum, TARAYICILAR } from './stratejiler';
 import { ABD, BIST, HISSE_BILGI } from './veri/evren';
 import { serileriGetir } from './veri/getir';
+import { hataTuru } from './veri/yahoo';
+import { haftaSonuMu } from './bildirim-metin';
 
 /**
  * TARAMA ÇALIŞTIRICISI — GitHub Actions'ta günde birkaç kez koşar, sonucu
@@ -24,10 +26,16 @@ import { serileriGetir } from './veri/getir';
  *   SINIR=20     → her piyasadan ilk N sembol (yerel deneme için)
  *   PIYASA=BIST  → tek piyasa
  *   ESZAMANLI=4  → aynı anda kaç sembol çekilsin (kaynağa nazik: 4)
+ *
+ * Kaynak çökerse (hatalı sembol oranı HATA_ESIGI'ni aşarsa) hiçbir dosya yazılmaz ve
+ * çıkış kodu 1 olur: yarım evrenle "yeni eşleşme" ve karne kapanışı üretilmesin.
  */
 // npm betikleri proje kökünden çalışır.
 const KOK = process.cwd();
 const CIKTI = join(KOK, 'docs', 'tarama');
+
+/** Hatalı sembol oranı bunu aşarsa yayın yok (Yahoo kesintisi, hız sınırı). */
+export const HATA_ESIGI = 0.2;
 
 const y2 = (n: number) => Math.round(n * 100) / 100;
 const y3 = (n: number) => Math.round(n * 1000) / 1000;
@@ -66,6 +74,7 @@ async function main() {
   const fiyatlar = new Map<string, number>();
   const grafik: GrafikVerisi = { surum: 1, uretildi: Math.floor(Date.now() / 1000), seriler: {} };
   let bitti = 0;
+  let kisaGecmis = 0;
 
   // Basit eşzamanlılık: N işçi, kuyruktan çeker.
   let sira = 0;
@@ -74,7 +83,8 @@ async function main() {
       const is = isler[sira++];
       try {
         const seriler = await serileriGetir(is.sembol, is.piyasa);
-        fiyatlar.set(`${is.piyasa}:${is.sembol}`, seriler['1d'][seriler['1d'].length - 1].k);
+        const mumSayisi = seriler['1d'].length;
+        fiyatlar.set(`${is.piyasa}:${is.sembol}`, seriler['1d'][mumSayisi - 1].k);
         {
           const g = seriler['1d'].slice(-60);
           const bilgi = HISSE_BILGI[`${is.piyasa}:${is.sembol}`];
@@ -91,7 +101,10 @@ async function main() {
             ...(gost ? { g: gost } : {}),
           };
         }
+        // Kısa geçmişli hisse (yeni halka arz) grafiğe yazıldı; yalnız kısa seriyle çalışan tarayıcılar koşar.
+        if (mumSayisi < 250) kisaGecmis++;
         for (const t of TARAYICILAR) {
+          if (mumSayisi < enAzMum(t)) continue;
           if (t.sart && !t.sart(ortam, is.piyasa)) continue;
           let e: Eslesme | null = null;
           try {
@@ -105,7 +118,8 @@ async function main() {
           }
         }
       } catch (hata) {
-        hatali.push(`${is.piyasa}:${is.sembol}`);
+        // "BIST:CITAS:kisa": tür (yok/hiz/ag/kisa) günlükte neden düştüğünü söyler.
+        hatali.push(`${is.piyasa}:${is.sembol}:${hataTuru(hata)}`);
         console.error(`  ${is.sembol}: ${(hata as Error).message}`);
       }
       bitti++;
@@ -113,6 +127,14 @@ async function main() {
     }
   };
   await Promise.all(Array.from({ length: eszamanli }, isci));
+
+  const hataOrani = isler.length ? hatali.length / isler.length : 0;
+  if (hataOrani > HATA_ESIGI) {
+    const turler: Record<string, number> = {};
+    for (const h of hatali) { const t = h.split(':')[2] ?? '?'; turler[t] = (turler[t] ?? 0) + 1; }
+    console.error(`Hatalı sembol oranı yüzde ${Math.round(hataOrani * 100)} (${hatali.length}/${isler.length}; ${JSON.stringify(turler)}): sonuç YAYIMLANMADI.`);
+    process.exit(1);
+  }
 
   const sonuc: TaramaSonucu = {
     surum: 1,
@@ -179,14 +201,22 @@ async function main() {
     }
   }
   writeFileSync(oncekiYol, JSON.stringify(sonuc));
-  writeFileSync(join(CIKTI, 'yeni.json'), JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni }));
+  // Hafta sonu koşusunda veri değişmez, fark boş çıkar: cuma akşamının "yeni"leri silinmesin
+  // (pazartesi sabah brifingi "yeni şart oluşmadı" diyordu). bildirim.ts eski yeni.json'u yeniden göndermez.
+  const yeniYol = join(CIKTI, 'yeni.json');
+  if (yeni.length === 0 && haftaSonuMu(sonuc.uretildi) && existsSync(yeniYol)) console.log('Hafta sonu ve yeni eşleşme yok: yeni.json korundu.');
+  else writeFileSync(yeniYol, JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni }));
   writeFileSync(join(CIKTI, 'grafik.json'), JSON.stringify(grafik));
   writeFileSync(join(CIKTI, 'ozet.json'), JSON.stringify({ uretildi: sonuc.uretildi, ortam, sayac, taranan: sonuc.taranan }));
-  console.log(`Bitti: ${eslesmeler.length} eşleşme, ${yeni.length} yeni, ${hatali.length} hatalı sembol.`);
+  console.log(`Bitti: ${eslesmeler.length} eşleşme, ${yeni.length} yeni, ${hatali.length} hatalı sembol, ${kisaGecmis} kısa geçmişli hisse.`);
+  if (hatali.length) console.log(`Hatalı: ${hatali.join(', ')}`);
   console.table(sayac);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// Yalnız doğrudan çalıştırılınca (npm run tara). sina.ts `gostergeler`i içe aktarıyor; içe aktarma taramayı başlatmamalı.
+if (process.argv[1]?.endsWith('calistir.ts')) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

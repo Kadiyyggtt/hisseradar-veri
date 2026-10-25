@@ -18,7 +18,7 @@ export const ema200: Tarayici = {
           { '200 günlük ortalama': e[i] });
       if (asagiKesti(k, e, i))
         return eslesme(s, 'ema200', '1d', 'sat', 100,
-          [`Kapanış ${f2(m[i].k)} ile 200 günlük üssel ortalama (${f2(e[i])}) ${g === 0 ? 'bugün' : g + ' gün önce'} aşağı kesildi.`, 'Trendde bozulma başladı, temkinli olunmalı.'],
+          [`Kapanış ${f2(m[i].k)} ile 200 günlük üssel ortalama (${f2(e[i])}) ${g === 0 ? 'bugün' : g + ' gün önce'} aşağı kesildi.`, 'Trendde bozulma başladı.'],
           { '200 günlük ortalama': e[i] });
     }
     return null;
@@ -93,7 +93,7 @@ export const saatlik926: Tarayici = {
     if (g < 0) return null;
     const nabiz = o.endeksNabzi[s.piyasa === 'BIST' ? 'XU100' : 'SPX']?.pozitif;
     return eslesme(s, 'saatlik-9-26', '1h', 'al', nabiz ? 100 : 70,
-      ['Saatlik grafikte 9 periyotluk üssel ortalama, 26 periyotluk ortalamayı yukarı kesti. Bu erken bir sinyaldir.', nabiz ? 'Endeks Nabzı pozitif, isabet artar.' : 'Endeks Nabzı negatif. İlk parça için bile dikkatli olunmalı.'],
+      ['Saatlik grafikte 9 periyotluk üssel ortalama, 26 periyotluk ortalamayı yukarı kesti. Bu erken bir sinyaldir.', nabiz ? 'Endeks Nabzı pozitif, isabet artar.' : 'Endeks Nabzı negatif, isabet düşer.'],
       { '9 periyotluk ortalama': e9[m.length - 1], '26 periyotluk ortalama': e26[m.length - 1] });
   },
 };
@@ -103,13 +103,16 @@ export const dugum: Tarayici = {
   id: 'dugum',
   tara(s) {
     const m = s['1d'];
+    // 21 periyotluk EMA'nın oturması için en az 30 mum; kısa/boş seride çöküyordu (denetim: boş, tek mum, 5 mum).
+    if (m.length < 30) return null;
     const k = kapanislar(m);
     const es = [5, 8, 13, 21].map((p) => ema(k, p));
     const i = m.length - 1;
     const d = es.map((e) => e[i]);
     const en = Math.max(...d) - Math.min(...d);
     const oran = en / m[i].k;
-    if (oran > 0.015) return null;
+    // NaN karşılaştırması false döner ve süzgeçten geçerdi: sonlu değilse eşleşme yok.
+    if (!Number.isFinite(oran) || oran > 0.015) return null;
     return eslesme(s, 'dugum', '1d', 'izle', 100,
       [`5, 8, 13 ve 21 periyotluk üssel ortalamalar fiyatın yüzde ${(oran * 100).toFixed(2).replace('.', ',')}${iyelikEki(Math.round((oran * 100 * 100) % 100) || Math.round(oran * 100))} içinde düğümlendi.`, 'Kırılım yakın. Yönü hacim gösterecek.'],
       { '5 günlük ortalama': d[0], '21 günlük ortalama': d[3] });
@@ -156,7 +159,7 @@ export const aylik510: Tarayici = {
     const oncekiEnYuksek = Math.max(...m.slice(i - 3, i).map((x) => x.h));
     if (m[i].h <= oncekiEnYuksek) return null;
     return eslesme(s, 'aylik-5-10', '1mo', 'izle', 100,
-      ['Aylık kapanış, 10 aylık ortalamayı yukarı geçti.', 'Bu ayın hacmi önceki üç ayın en yüksek hacmini aştı.', 'Tek başına sinyal değildir, takip listesine alınmalı.'],
+      ['Aylık kapanış, 10 aylık ortalamayı yukarı geçti.', 'Bu ayın hacmi önceki üç ayın en yüksek hacmini aştı.', 'Tek başına sinyal değildir; takip listesi adayı.'],
       { '10 aylık ortalama': e10[i] });
   },
 };
@@ -190,7 +193,7 @@ export const fibMerdiveni: Tarayici = {
       [
         '55, 89, 144 ve 233 günlük ortalamalar yukarıdan aşağıya sıralı, dizilim bozulmamış.',
         `Fiyat ${i - daldi} gün önce 144 ile 233 günlük ortalamalar arasındaki bölgeye indi.`,
-        gecisBugun ? 'En üstteki ortalama olan 55 günlük bugün yukarı geçildi. Al şartı sağlandı.' : 'Fiyat henüz bölgede. 55 günlük ortalama boyun çizgisidir, geçilince al şartı sağlanır.',
+        gecisBugun ? 'En üstteki ortalama olan 55 günlük bugün yukarı geçildi. Yükseliş şartı sağlandı.' : 'Fiyat henüz bölgede. 55 günlük ortalama boyun çizgisidir, geçilince yükseliş şartı sağlanır.',
         ustte ? '' : '',
       ].filter(Boolean),
       { '55 günlük (boyun çizgisi)': e55[i], '144 günlük ortalama': e144[i], '233 günlük ortalama': e233[i] });
@@ -233,7 +236,7 @@ export const sikisma200: Tarayici = {
       [
         `Fiyat ${i - dokundu} gün önce 200 günlük ortalamaya (${f2(e200[dokundu])}) dokundu ve 8 ile 200 günlük ortalamalar arasında sıkıştı.`,
         `${gecis} gün önce 8 günlük ortalamayı yukarı geçti. Geçiş sonrası tepe ${f2(tepe)}.`,
-        dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' bugün geçildi, al şartı sağlandı.' : ' bekleniyor.'}` : 'Geçişten sonraki ilk düşük bekleniyor.',
+        dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' bugün geçildi, yükseliş şartı sağlandı.' : ' bekleniyor.'}` : 'Geçişten sonraki ilk düşük bekleniyor.',
       ],
       { '200 günlük ortalama': e200[i], '8 periyotluk ortalama': e8[i], 'Yüzde 61,8 seviyesi': seviye618, Tepe: tepe });
   },

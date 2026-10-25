@@ -11,6 +11,8 @@ export const heikinTeyit: Tarayici = {
   id: 'heikin',
   tara(s) {
     const h = heikin(s['1d']);
+    // Dünle karşılaştırma gerekir (boş seride çöküyordu); bozuk mumda dönüşüm kesilir, son mum bugünü göstermez.
+    if (h.length < 2 || h.length !== s['1d'].length) return null;
     const i = h.length - 1;
     const bugun = h[i];
     if (!bugun.teyit) return null;

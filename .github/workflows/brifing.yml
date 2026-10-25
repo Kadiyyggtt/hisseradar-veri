@@ -1,11 +1,12 @@
 name: Brifing
 
-# Sabah brifingi hafta içi 09:45 TR (06:45 UTC), haftalık özet pazar 18:00 TR (15:00 UTC).
+# Sabah brifingi hafta içi 09:45 TR (06:45 UTC), haftalık özet pazar 18:07 TR (15:07 UTC).
+# Dakikalar 0/30'dan uzak (GitHub kuyruğu). Tarama 24 saatten (hafta sonu payıyla) eskiyse gönderilmez.
 # Son yayınlanmış tarama sonucunu okur; dosyaya yazmaz, yalnız bildirim gönderir.
 on:
   schedule:
     - cron: '45 6 * * 1-5'
-    - cron: '0 15 * * 0'
+    - cron: '7 15 * * 0'
   workflow_dispatch:
     inputs:
       tur:
@@ -27,13 +28,20 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+      # Elle girilen değer kabuğa doğrudan gömülmez (komut enjeksiyonu): env üzerinden okunur ve süzülür.
       - name: Tür
         id: tur
-        run: |
-          if [ -n "${{ github.event.inputs.tur }}" ]; then echo "tur=${{ github.event.inputs.tur }}" >> "$GITHUB_OUTPUT";
-          elif [ "$(date -u +%u)" = "7" ]; then echo "tur=hafta" >> "$GITHUB_OUTPUT";
-          else echo "tur=sabah" >> "$GITHUB_OUTPUT"; fi
-      - name: Brifing gönder
-        run: npm run brifing -- ${{ steps.tur.outputs.tur }}
         env:
+          GIRDI: ${{ github.event.inputs.tur }}
+        run: |
+          case "$GIRDI" in
+            sabah|hafta) tur="$GIRDI" ;;
+            "") if [ "$(date -u +%u)" = "7" ]; then tur=hafta; else tur=sabah; fi ;;
+            *) echo "::error::tur yalnız 'sabah' ya da 'hafta' olabilir"; exit 1 ;;
+          esac
+          echo "tur=$tur" >> "$GITHUB_OUTPUT"
+      - name: Brifing gönder
+        run: npm run brifing -- "$TUR"
+        env:
+          TUR: ${{ steps.tur.outputs.tur }}
           FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}
