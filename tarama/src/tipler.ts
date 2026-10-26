@@ -150,7 +150,7 @@ export interface TaramaSonucu {
   eslesmeler: Eslesme[];
   /** taramaId → eşleşme sayısı. */
   sayac: Record<string, number>;
-  taranan: { BIST: number; ABD: number; hatali: string[] };
+  taranan: { BIST: number; ABD: number; hatali?: string[] };
   portfoy?: Portfoy;
   /** Taranan en son günlük mumun İstanbul tarihi (YYYY-MM-DD): "son kapanış hangi gün". Eski dosyada yok. */
   veriTarihi?: string;

@@ -101,7 +101,7 @@ export const sahteCikis: Tarayici = {
     if (m[i].k > satisMaliyeti) return null; // artık sahte çıkış değil
     const yukari = ((m[i].k / dip - 1) * 100).toFixed(1).replace('.', ',');
     return eslesme(s, 'sahte-cikis', '1d', 'al', 70,
-      [`Satış, maliyet bandında (${f2(maliyet)}) durdu: fiyat bandın altına inmedi. Dip ${f2(dip)}, ${gun} gün önce; kapanış o dipten yüzde ${yukari} yukarıda.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kurala göre kâr stopu bu seviyeye çekilir.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
+      [`Satış, maliyet bandında (${f2(maliyet)}) durdu: fiyat bandın altına inmedi. Dip ${f2(dip)}, ${gun} gün önce; kapanış o dipten yüzde ${yukari} yukarıda.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kural bu seviyeyi kâr stopu seviyesi olarak tarif eder.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
       { '%38,2 hedefi': hedef, 'Satış maliyeti': satisMaliyeti, 'Maliyet (%61,8)': maliyet });
   },
 };

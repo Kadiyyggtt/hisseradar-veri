@@ -35,7 +35,6 @@ async function main() {
   }
   if (!veriGuncelMi(sonuc.uretildi, Math.floor(simdi / 1000))) {
     // Tarama düşmüş: günler önceki aday listesi bugünün brifingi gibi gitmesin. İş akışında uyarı olarak görünür.
-    console.log('::warning::Veri güncel değil; brifing gönderilmedi.');
     ozetYaz(`Brifing: veri güncel değil (son tarama ${new Date(sonuc.uretildi * 1000).toISOString()}), gönderilmedi.`);
     return;
   }
