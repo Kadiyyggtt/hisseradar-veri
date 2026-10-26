@@ -76,7 +76,7 @@ export interface Ortam {
   endeksNabzi: Record<'XU100' | 'SPX', { pozitif: boolean; ema8: number; ema20: number; t: number } | null>;
 }
 
-/** Hayali portföy: dönem başında 100 bazlı, üç hisse (2 BIST + 1 ABD). */
+/** Otomatik portföy: dönem başında 100 bazlı, üç hisse (2 BIST + 1 ABD). */
 export interface PortfoyPozisyon {
   sembol: string;
   piyasa: 'BIST' | 'ABD';
@@ -152,6 +152,8 @@ export interface TaramaSonucu {
   sayac: Record<string, number>;
   taranan: { BIST: number; ABD: number; hatali: string[] };
   portfoy?: Portfoy;
+  /** Taranan en son günlük mumun İstanbul tarihi (YYYY-MM-DD): "son kapanış hangi gün". Eski dosyada yok. */
+  veriTarihi?: string;
 }
 
 export interface Tarayici {
@@ -206,7 +208,7 @@ export interface GecmisGun {
   t: number;
   xu100: number | null;
   spx: number | null;
-  /** Hayali portföyün 100 bazlı değerleri; dönem yoksa null. */
+  /** Otomatik portföyün 100 bazlı değerleri; dönem yoksa null. */
   hayali: { hafta: number | null; ay: number | null; yil: number | null };
 }
 export interface GecmisDosyasi {

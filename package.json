@@ -6,7 +6,7 @@
   "scripts": {
     "tip": "tsc -p tsconfig.json",
     "tara": "tsx tarama/src/calistir.ts",
-    "tara:test": "tsx tarama/src/sina.ts",
+    "tara:test": "tsx tarama/src/sina.ts && tsx tarama/src/sina-altyapi.ts",
     "bildir": "tsx tarama/src/bildirim.ts",
     "brifing": "tsx tarama/src/brifing.ts",
     "hisse-sicil": "tsx tarama/src/hisse-sicil.ts"

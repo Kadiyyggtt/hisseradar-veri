@@ -1,18 +1,19 @@
 name: Brifing
 
-# Sabah brifingi hafta içi 09:45 TR (06:45 UTC), haftalık özet pazar 18:07 TR (15:07 UTC).
-# Dakikalar 0/30'dan uzak (GitHub kuyruğu). Tarama 24 saatten (hafta sonu payıyla) eskiyse gönderilmez.
+# Yalnız haftalık özet (pazar 18:23 TR = 15:23 UTC; dakika :23, GitHub kuyruğunun yoğun olmadığı yer)
+# ve elle tetikleme. Sabah brifingi burada değil: tarama.yml günün ilk sabah koşusunun sonunda gönderir,
+# böylece cron gecikse de brifing taramayla aynı anda gelir. Tarama 24 saatten (hafta sonu payıyla)
+# eskiyse gönderilmez; sessiz saatte (22:00-08:00 TR) gönderilmez.
 # Son yayınlanmış tarama sonucunu okur; dosyaya yazmaz, yalnız bildirim gönderir.
 on:
   schedule:
-    - cron: '45 6 * * 1-5'
-    - cron: '7 15 * * 0'
+    - cron: '23 15 * * 0'
   workflow_dispatch:
     inputs:
       tur:
         description: 'sabah ya da hafta'
         required: true
-        default: 'sabah'
+        default: 'hafta'
 
 permissions:
   contents: read
@@ -28,6 +29,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+        timeout-minutes: 5
       # Elle girilen değer kabuğa doğrudan gömülmez (komut enjeksiyonu): env üzerinden okunur ve süzülür.
       - name: Tür
         id: tur
@@ -36,11 +38,12 @@ jobs:
         run: |
           case "$GIRDI" in
             sabah|hafta) tur="$GIRDI" ;;
-            "") if [ "$(date -u +%u)" = "7" ]; then tur=hafta; else tur=sabah; fi ;;
+            "") tur=hafta ;;
             *) echo "::error::tur yalnız 'sabah' ya da 'hafta' olabilir"; exit 1 ;;
           esac
           echo "tur=$tur" >> "$GITHUB_OUTPUT"
       - name: Brifing gönder
+        timeout-minutes: 3
         run: npm run brifing -- "$TUR"
         env:
           TUR: ${{ steps.tur.outputs.tur }}

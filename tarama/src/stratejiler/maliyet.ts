@@ -1,6 +1,6 @@
 import type { Seriler, Tarayici } from '../tipler';
 import { fib, geriAlma, hacimOrt, pivotlar, yakin } from '../gostergeler/pivot';
-import { eslesme, f2 } from './ortak';
+import { eslesme, f2, HEDEF_ESIK } from './ortak';
 
 /**
  * 1-2-3 döngüsü: son onaylı dip (1) ve sonrasındaki tepe (2). Yükseliş en az
@@ -36,7 +36,7 @@ export const dongu123: Tarayici = {
         `Kapanış ${f2(son.k)} ile maliyet bandının içinde.`,
         hacimDusuk ? 'Hacim 20 günlük ortalamanın altında. Satış tükeniyor olabilir.' : 'Hacim ortalamanın üstünde. Maliyetin kırılma riski var.',
       ],
-      { '1 noktası (dip)': d.bir.fiyat, '2 noktası (tepe)': d.iki.fiyat, 'Maliyet (yüzde 61,8)': maliyet, 'Yüzde 38,2 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.382) });
+      { '1 noktası (dip)': d.bir.fiyat, '2 noktası (tepe)': d.iki.fiyat, 'Maliyet (%61,8)': maliyet, '%38,2 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.382) });
   },
 };
 
@@ -56,15 +56,27 @@ export const ucBantTesti: Tarayici = {
         const onceDegdi = m.slice(d.iki.i + 1, j).some((x) => x.d <= s382);
         if (onceDegdi) return null;
         return eslesme(s, 'uc-bant-testi', '1d', 'izle', 100,
-          [`${f2(d.iki.fiyat)} tepesinden gelen düşüş, yüzde 38,2 bandına (${f2(s382)}) ${g === 0 ? 'bugün' : g + ' gün önce'} ilk kez değdi.`, 'Bu bir ara düzeltme değil. Fiyat yüzde 61,8 maliyetine kadar inmeye aday.'],
-          { 'Yüzde 38,2 seviyesi': s382, 'Yüzde 50 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.5), 'Maliyet (yüzde 61,8)': fib(d.iki.fiyat, d.bir.fiyat, 0.618) });
+          [`${f2(d.iki.fiyat)} tepesinden gelen düşüş, yüzde 38,2 bandına (${f2(s382)}) ${g === 0 ? 'bugün' : g + ' gün önce'} ilk kez değdi.`, 'Kural bu dokunuşu ara düzeltme saymaz; sıradaki ölçü yüzde 61,8 maliyet bandıdır.'],
+          { '%38,2 seviyesi': s382, '%50 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.5), 'Maliyet (%61,8)': fib(d.iki.fiyat, d.bir.fiyat, 0.618) });
       }
     }
     return null;
   },
 };
 
-/** 1.2 — Sahte Çıkış: maliyetten dönüş başladı, hedef %38,2; satış maliyeti tavan. */
+/** Sahte Çıkış maliyet bandının genişliği (yüzde, iki yana). */
+export const SAHTE_BANT = 3;
+
+/**
+ * 1.2 — Sahte Çıkış: maliyetten dönüş başladı, hedef %38,2; satış maliyeti tavan.
+ * Şartlar (gerekçe metni grafikle çelişmesin diye her biri ölçülür):
+ *  1. Tepeden sonraki en düşük mum (dip) maliyet bandında (yüzde 61,8 ± yüzde 3), en çok 15 mum önce.
+ *  2. Satış bantta durdu: dip bandın içinde olduğu için tepeden bugüne hiçbir kapanış (son kapanış dahil) bandın
+ *     altında değil. Bandın altına inen seri "maliyetin kırıldığı" seridir, sahte çıkış değil.
+ *  3. Gerçek dönüş: dip en az 1 gün önce ve kapanış o dipten en az yüzde 3 yukarıda.
+ *     "N gün önce" sayısı bu dipten sayılır; dip bugünse dönüş yoktur.
+ *  4. Hedef (yüzde 38,2) fiyatın en az yüzde 1,5 üstünde, kapanış satış maliyetinin altında.
+ */
 export const sahteCikis: Tarayici = {
   id: 'sahte-cikis',
   tara(s) {
@@ -73,18 +85,24 @@ export const sahteCikis: Tarayici = {
     const m = s['1d'];
     const i = m.length - 1;
     const maliyet = fib(d.iki.fiyat, d.bir.fiyat, 0.618);
-    // Tepeden sonra maliyet bandına inmiş (3) ve son 5 mumda oradan en az %3 yukarı dönmüş.
-    let uc = -1;
-    for (let j = d.iki.i + 1; j <= i; j++) if (yakin(m[j].d, maliyet, 3)) uc = j;
-    if (uc < 0 || i - uc > 15) return null;
-    const dip = Math.min(...m.slice(uc, i + 1).map((x) => x.d));
-    if (m[i].k < dip * 1.03) return null;
+    if (d.iki.i >= i) return null;
+    // Tepeden sonraki en düşük mum (3 noktası) bandın içinde olmalı. Kapanış hiçbir zaman o mumun dibinden aşağıda
+    // olamayacağı için bu şart, tepeden bugüne hiçbir kapanışın (son kapanış dahil) bandın altına inmediğini de garanti eder.
+    let dipI = d.iki.i + 1;
+    for (let j = dipI; j <= i; j++) if (m[j].d < m[dipI].d) dipI = j;
+    const dip = m[dipI].d;
+    if (!yakin(dip, maliyet, SAHTE_BANT) || i - dipI > 15) return null;
+    // Dönüş: dip en az 1 gün önce ve kapanış dipten en az yüzde 3 yukarıda. "N gün" bu dipten sayılır.
+    const gun = i - dipI;
+    if (gun < 1 || m[i].k < dip * 1.03) return null;
     const hedef = fib(d.iki.fiyat, d.bir.fiyat, 0.382);
+    if (hedef < m[i].k * HEDEF_ESIK) return null; // hedefe gelinmiş: dönüş artık başlangıçta değil
     const satisMaliyeti = fib(dip, d.iki.fiyat, 0.618);
     if (m[i].k > satisMaliyeti) return null; // artık sahte çıkış değil
+    const yukari = ((m[i].k / dip - 1) * 100).toFixed(1).replace('.', ',');
     return eslesme(s, 'sahte-cikis', '1d', 'al', 70,
-      [`Satış, maliyet bandında (${f2(maliyet)}) durdu ve fiyat ${i - uc} gündür yukarı dönüyor.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kurala göre kâr stopu bu seviyeye çekilir.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
-      { 'Yüzde 38,2 hedefi': hedef, 'Satış maliyeti': satisMaliyeti, 'Maliyet (yüzde 61,8)': maliyet });
+      [`Satış, maliyet bandında (${f2(maliyet)}) durdu: fiyat bandın altına inmedi. Dip ${f2(dip)}, ${gun} gün önce; kapanış o dipten yüzde ${yukari} yukarıda.`, `Yüzde 38,2 hedefi ${f2(hedef)}. Kurala göre kâr stopu bu seviyeye çekilir.`, `Tavan, ${f2(satisMaliyeti)} satış maliyetidir. Hacimli aşılırsa yeni döngü ihtimali doğar.`],
+      { '%38,2 hedefi': hedef, 'Satış maliyeti': satisMaliyeti, 'Maliyet (%61,8)': maliyet });
   },
 };
 
@@ -111,7 +129,7 @@ export const yeniDongu: Tarayici = {
         gecti ? `${f2(satisMaliyeti)} satış maliyeti bugün geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Kural kitabında bu bölge ekleme bölgesi sayılır.`,
         `Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı${kat >= 1.5 ? ', iştahlı bir geçiş.' : ', zayıf bir geçiş. İkili tepe riski var.'}`,
       ],
-      { 'Satış maliyeti': satisMaliyeti, 'Zirve (2 noktası)': d.iki.fiyat, 'Maliyet (yüzde 61,8)': maliyet });
+      { 'Satış maliyeti': satisMaliyeti, 'Zirve (2 noktası)': d.iki.fiyat, 'Maliyet (%61,8)': maliyet });
   },
 };
 

@@ -63,7 +63,7 @@ function yutanTara(s: Seriler) {
     return eslesme(s, 'yutan', '1d', teyit ? (bogaYutan ? 'al' : 'sat') : 'izle', guven,
       [`${bogaYutan ? 'Boğa' : 'Ayı'} yutan mum${teyitli ? ' (dün)' : ' (bugün)'}: ${bogaYutan ? 'kırmızı' : 'yeşil'} mumun ardından gövdesi onu iki uçtan saran ${bogaYutan ? 'yeşil' : 'kırmızı'} mum. Gövde önceki gövdenin ${(bg / og).toFixed(1).replace('.', ',')} katı, son 10 günün ortalamasının ${(bg / ortGovde(m, gun)).toFixed(1).replace('.', ',')} katı.`,
        `Bağlam: ${bogaYutan ? 'düşüş sonrası' : 'yükseliş sonrası'}; fiyat EMA 20 (${f2(e20)}) ${m[gun - 1].k < e20 ? 'altında' : 'üstünde'}. Hacim 20 günlük ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.`,
-       teyit ? `Bugün ${bogaYutan ? 'yutan mumun üstünde' : 'yutan mumun altında'} kapanış geldi: Teyit tamam, ${bogaYutan ? 'yükseliş' : 'düşüş'} şartı sağlandı.` : 'Teyit bekleniyor: Kural, ertesi gün kalıbın yönünde kapanış ister; tek mum yeterli sayılmaz.',
+       teyit ? `Bugün ${bogaYutan ? 'yutan mumun üstünde' : 'yutan mumun altında'} kapanış geldi: Teyit tamam, ${bogaYutan ? 'yükseliş' : 'düşüş'} şartı sağlandı.` : 'Teyit henüz yok: Kural, ertesi gün kalıbın yönünde kapanış ister; tek mum yeterli sayılmaz.',
        `Stop ${bogaYutan ? 'yutan mumun dibi' : 'yutan mumun tepesi'} ${f2(bogaYutan ? b.d : b.y)}; hedef mum boyunun (${f2(boy)}) bir ve iki katı.`],
       { [bogaYutan ? 'Stop (mum dibi)' : 'Stop (mum tepesi)']: bogaYutan ? b.d : b.y, 'Hedef 1 (bir boy)': b.k + yon * boy, 'Hedef 2 (iki boy)': b.k + yon * 2 * boy });
   }
@@ -97,7 +97,7 @@ function cekicTara(s: Seriler) {
     return eslesme(s, 'cekic', '1d', teyit ? (cekic ? 'al' : 'sat') : 'izle', guven,
       [`${cekic ? 'Çekiç' : 'Kayan yıldız'}${teyitli ? ' (dün)' : ' (bugün)'}: ${cekic ? 'alt' : 'üst'} fitil ${f2(fitil)}, gövdenin ${g > 0 ? (fitil / g).toFixed(1).replace('.', ',') : '∞'} katı; karşı fitil neredeyse yok. Gövde mumun ${cekic ? 'üst' : 'alt'} ucunda.`,
        `Bağlam: ${cekic ? 'Düşüşün dibinde, gün içi satış geldi ama kapanış yukarıda tutuldu' : 'Yükselişin tepesinde, gün içi alış geldi ama kapanış aşağıda kaldı'}. Hacim 20 günlük ortalamanın ${kat.toFixed(1).replace('.', ',')} katı.`,
-       teyit ? `Bugün ${cekic ? 'çekicin tepesinin üstünde' : 'yıldızın dibinin altında'} kapanış: Teyit tamam, ${cekic ? 'yükseliş' : 'düşüş'} şartı sağlandı.` : `Teyit bekleniyor: Yarın ${cekic ? 'çekicin tepesi' : 'yıldızın dibi'} (${f2(cekic ? b.y : b.d)}) kapanışla geçilmeli.`,
+       teyit ? `Bugün ${cekic ? 'çekicin tepesinin üstünde' : 'yıldızın dibinin altında'} kapanış: Teyit tamam, ${cekic ? 'yükseliş' : 'düşüş'} şartı sağlandı.` : `Teyit henüz yok: Kural, ${cekic ? 'çekicin tepesinin' : 'yıldızın dibinin'} (${f2(cekic ? b.y : b.d)}) kapanışla geçilmesini şart sayar.`,
        `Stop ${cekic ? 'fitilin dibi' : 'fitilin tepesi'} ${f2(cekic ? b.d : b.y)}; hedef mum boyunun bir ve iki katı.`],
       { [cekic ? 'Stop (fitil dibi)' : 'Stop (fitil tepesi)']: cekic ? b.d : b.y, 'Hedef 1 (bir boy)': (cekic ? b.y : b.d) + yon * boy, 'Hedef 2 (iki boy)': (cekic ? b.y : b.d) + yon * 2 * boy });
   }

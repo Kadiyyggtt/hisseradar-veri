@@ -77,7 +77,7 @@ export const HAFTALIK_KONUSU = 'haftalik';
 const sayac = (n: number, tekil: string) => `${n} ${tekil}`;
 
 /**
- * SABAH BRİFİNGİ (hafta içi 09:45): son taramada YENİ yükseliş şartları (yeni.json) ve
+ * SABAH BRİFİNGİ (hafta içi, günün ilk sabah taramasının sonunda): son taramada YENİ yükseliş şartları (yeni.json) ve
  * birden çok formasyondan geçen güçlü adaylar. Bütün eşleşmeleri saymak anlamsız:
  * 24 Ekim'de 316 hissede "al" vardı; yeni olan ve güçlü olan haber değeri taşır.
  */
@@ -135,7 +135,7 @@ export function haftalikOzet(sonuc: TaramaSonucu, sicil: Sicil | null, simdi = D
     // "yüzde 6,5 ekside"; yuvarlanınca sıfırsa "yatay" (eski metin "-0,0 ile ekside" yazıyordu).
     const fark = Math.round((hafta.deger - 100) * 10) / 10;
     const durum = fark === 0 ? 'yatay' : `yüzde ${Math.abs(fark).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${fark > 0 ? 'artıda' : 'ekside'}`;
-    parcalar.push(`Hayali portföy haftayı ${durum} kapattı (${hafta.pozisyonlar.map((p) => p.sembol).join(', ')}).`);
+    parcalar.push(`Otomatik portföy haftayı ${durum} kapattı (${hafta.pozisyonlar.map((p) => p.sembol).join(', ')}).`);
   }
   parcalar.push(`Açık karne kaydı ${(sicil?.acik ?? []).filter((k) => !esikAltiKayit(k)).length}. Pazartesi için ${new Set(sonuc.eslesmeler.filter((e) => e.yon === 'al').map((e) => e.sembol)).size} hissede yükseliş şartı duruyor.`);
   return { baslik: 'Haftalık özet', govde: parcalar.join(' ') };
@@ -163,3 +163,75 @@ export function veriGuncelMi(uretildi: number, simdiSn: number): boolean {
 
 /** İstanbul'a göre cumartesi ya da pazar mı (piyasa kapalı, tarama verisi değişmez). */
 export const haftaSonuMu = (sn: number) => { const g = haftaGunu(istGun(sn)); return g === 0 || g === 6; };
+
+/**
+ * SESSİZ SAAT — Türkiye saatiyle 22:00-08:00 arası bildirim gönderilmez (sabit UTC+3).
+ * `payDk`: taramanın kararı için erken pay. Tarama 21:50'de biter, bildirim adımı birkaç dakika
+ * sonra koşar; karar 22:00'ı geçmesin diye tarama 22:00'dan `payDk` önce sessiz sayar.
+ */
+export const SESSIZ_BAS_SAAT = 22;
+export const SESSIZ_SON_SAAT = 8;
+export const SESSIZ_PAY_DK = 15;
+export function sessizSaatMi(sn: number, payDk = 0): boolean {
+  const dk = Math.floor((((sn + 3 * SAAT) % 86400) + 86400) % 86400 / 60);
+  return dk >= SESSIZ_BAS_SAAT * 60 - payDk || dk < SESSIZ_SON_SAAT * 60;
+}
+
+/** O İstanbul gününün 08:00'ı (unix saniye). */
+const sabahSekiz = (sn: number) => istGun(sn) * 86400 - 3 * SAAT + SESSIZ_SON_SAAT * SAAT;
+
+/**
+ * Günün ilk sabah koşusu mu: sessiz saat dışında, hafta içi ve bir önceki yayımlanmış tarama
+ * bugünün 08:00'ından önce. Sabah brifingi bu koşunun sonunda gider; cron saatlerce gecikse de
+ * brifing tarama ile aynı anda gelir. Sabah koşusu düşerse (yayın yok) sonraki koşu ilk sayılır.
+ */
+export function sabahIlkKosuMu(oncekiUretildi: number | null, simdi: number): boolean {
+  if (sessizSaatMi(simdi, SESSIZ_PAY_DK) || haftaSonuMu(simdi)) return false;
+  return oncekiUretildi === null || !Number.isFinite(oncekiUretildi) || oncekiUretildi < sabahSekiz(simdi);
+}
+
+/** Sessiz saatte birikip sabah gidecek bildirimler (docs/tarama/bekleyen.json). */
+export interface BekleyenBildirim {
+  surum: 1;
+  eslesmeler: Eslesme[];
+  ulasanlar: HedefUlasan[];
+}
+
+const eslesmeAnahtari = (e: Eslesme) => `${e.piyasa}:${e.sembol}:${e.taramaId}:${e.yon}`;
+const ulasanAnahtari = (u: HedefUlasan) => `${u.piyasa}:${u.sembol}:${u.taramaId}:${u.t}`;
+const tekil = <T>(liste: T[], anahtar: (x: T) => string) => {
+  const gorulen = new Set<string>();
+  return liste.filter((x) => { const k = anahtar(x); if (gorulen.has(k)) return false; gorulen.add(k); return true; });
+};
+
+/**
+ * Bildirim kuyruğu. Sessiz saatte bu koşunun yeni eşleşmeleri ve hedefe ulaşanları kuyruğa
+ * eklenir, hiçbir şey gönderilmez. Sessiz saat dışında kuyruktakiler bu koşununkilerle birlikte
+ * gönderilir ve kuyruk boşalır. Gece görülen ama sabah artık uymayan eşleşme gönderilmez
+ * (`guncel`: bu koşunun bütün eşleşmeleri); hedefe ulaşma olmuş bir olaydır, düşmez.
+ */
+export function kuyrukIlerlet(
+  bekleyen: BekleyenBildirim | null,
+  yeni: Eslesme[],
+  ulasanlar: HedefUlasan[],
+  guncel: Eslesme[],
+  simdi: number,
+): { sessiz: boolean; bekleyen: BekleyenBildirim | null; eslesmeler: Eslesme[]; ulasanlar: HedefUlasan[] } {
+  const eskiE = bekleyen?.eslesmeler ?? [];
+  const eskiU = bekleyen?.ulasanlar ?? [];
+  if (sessizSaatMi(simdi, SESSIZ_PAY_DK)) {
+    return {
+      sessiz: true,
+      bekleyen: { surum: 1, eslesmeler: tekil([...eskiE, ...yeni], eslesmeAnahtari), ulasanlar: tekil([...eskiU, ...ulasanlar], ulasanAnahtari) },
+      eslesmeler: yeni,
+      ulasanlar,
+    };
+  }
+  const simdiUyan = new Set(guncel.map(eslesmeAnahtari));
+  return {
+    sessiz: false,
+    bekleyen: null,
+    eslesmeler: tekil([...eskiE.filter((e) => simdiUyan.has(eslesmeAnahtari(e))), ...yeni], eslesmeAnahtari),
+    ulasanlar: tekil([...eskiU, ...ulasanlar], ulasanAnahtari),
+  };
+}

@@ -77,7 +77,7 @@ function harmonikTara(s: Seriler, kalip: Kalip) {
     [`${yonAd} ${kalip.ad}: X ${f2(X.fiyat)}, A ${f2(A.fiyat)}, B ${f2(B.fiyat)}, C ${f2(C.fiyat)}, D ${f2(uc)}.`,
      `B noktası XA bacağının ${yuzdeYaz(bOran)}${yuzdeEki(bOran)} geri aldı; C noktası AB'nin ${yuzdeYaz(cOran)}${yuzdeEki(cOran)}. İkisi de ${kalip.ad} oranlarında.`,
      `D noktası XA'nın ${yuzdeYaz(dOran)} seviyesinde: dönüş bölgesi ${f2(dBolgeAlt)} ile ${f2(dBolgeUst)} arası${kalip.tasar ? ", X'in ötesinde" : ''}.`,
-     donus ? `Son mum ${yukselis ? 'yukarı' : 'aşağı'} döndü. ${yukselis ? 'Yükseliş' : 'Düşüş'} şartı sağlandı; kuralın stop seviyesi ${f2(stop)}.` : 'Dönüş mumu bekleniyor; kural, bölgeye gelmeyi tek başına yeterli saymaz.'],
+     donus ? `Son mum ${yukselis ? 'yukarı' : 'aşağı'} döndü. ${yukselis ? 'Yükseliş' : 'Düşüş'} şartı sağlandı; kuralın stop seviyesi ${f2(stop)}.` : 'Dönüş mumu henüz yok; kural, bölgeye gelmeyi tek başına yeterli saymaz.'],
     { 'D bölgesi': uc, 'Hedef 1 (AD %38,2)': hedef1, 'Hedef 2 (AD %61,8)': hedef2, [kalip.tasar ? 'Stop (D ötesi)' : 'Stop (X)']: stop },
     (() => {
       const n = [nokta(m, X.i, X.fiyat, 'X'), nokta(m, A.i, A.fiyat, 'A'), nokta(m, B.i, B.fiyat, 'B'), nokta(m, C.i, C.fiyat, 'C'), nokta(m, D.i, uc, 'D')];

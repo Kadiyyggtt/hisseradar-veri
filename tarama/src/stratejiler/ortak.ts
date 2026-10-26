@@ -22,17 +22,20 @@ export function eslesme(
   if (!Number.isFinite(guven)) return null;
   // Gerekçede NaN/Infinity çıkıyorsa ölçüm bozuk veriden gelmiştir (sıfır fiyatlı mum: "yüzde Infinity yükseliş").
   if (aciklama.some((x) => /NaN|Infinity|undefined/.test(x))) return null;
+  const fiyat = kurus(son.k);
   let temiz: Record<string, number> | undefined;
   if (seviyeler) {
     temiz = {};
-    for (const [ad, v] of Object.entries(seviyeler)) if (Number.isFinite(v) && v > 0) temiz[ad] = v;
+    for (const [ad, v] of Object.entries(seviyeler)) if (Number.isFinite(v) && v > 0 && kurus(v) > 0) temiz[ad] = kurus(v);
+    temiz = hedefleriSuz(temiz, yon, fiyat);
   }
   let temizCizim: EslesmeCizimi | undefined;
   if (cizim) {
     // Çizimde sıfır/eksi fiyatlı ya da sonlu olmayan uç varsa o parça çizilmez (grafik ekseni bozulmasın).
-    const gecerli = (q: CizimNokta) => Number.isInteger(q.g) && q.g >= 0 && q.g < m.length && Number.isFinite(q.fiyat) && q.fiyat > 0;
-    const noktalar = cizim.noktalar?.filter(gecerli);
-    const cizgiler = cizim.cizgiler?.filter((l) => gecerli(l.a) && gecerli(l.b));
+    const gecerli = (q: CizimNokta) => Number.isInteger(q.g) && q.g >= 0 && q.g < m.length && Number.isFinite(q.fiyat) && kurus(q.fiyat) > 0;
+    const yuvarla = (q: CizimNokta): CizimNokta => ({ ...q, fiyat: kurus(q.fiyat) });
+    const noktalar = cizim.noktalar?.filter(gecerli).map(yuvarla);
+    const cizgiler = cizim.cizgiler?.filter((l) => gecerli(l.a) && gecerli(l.b)).map((l) => ({ ...l, a: yuvarla(l.a), b: yuvarla(l.b) }));
     if (noktalar?.length || cizgiler?.length) temizCizim = { ...cizim, ...(noktalar ? { noktalar } : {}), ...(cizgiler ? { cizgiler } : {}) };
   }
   return {
@@ -46,8 +49,73 @@ export function eslesme(
     aciklama,
     seviyeler: temiz,
     t: son.t,
-    fiyat: son.k,
+    fiyat,
   };
+}
+
+/**
+ * Parasal sayıyı kuruşa yuvarla: 1'in altındaki fiyatlarda 4 ondalık, üstünde 2 ondalık.
+ * Yahoo float32 artığı (343.86260986328125) hiçbir çıktıya taşınmasın.
+ */
+export function kurus(x: number): number {
+  if (!Number.isFinite(x)) return x;
+  const kat = Math.abs(x) < 1 ? 10000 : 100;
+  return Math.round(x * kat) / kat;
+}
+
+/** Hedef eşiği: uygulamanın yukariHedefler ve sicil.ts EN_AZ_HEDEF_ORANI ile aynı (fiyatın yüzde 1,5 ötesi). */
+export const HEDEF_ESIK = 1.015;
+const HEDEF_AD = /hedef/i;
+const NUMARALI_HEDEF = /^Hedef \d+/;
+
+/**
+ * "Hedef" adlı seviyeleri eşleşmenin yönüne göre süz ve sırala:
+ *  - al: hedef ≥ fiyat × 1,015 olmalı; altında kalan seviye "hedef" değildir, atılır.
+ *  - sat: hedef ≤ fiyat ÷ 1,015 olmalı.
+ *  - izle: adında "aşağı" geçen ya da fiyatın altındaki seviye aşağı hedef, öbürü yukarı hedef sayılır;
+ *    fiyatın yüzde 1,5'inden yakın olan atılır.
+ * Kalan hedefler fiyata yakınlık sırasıyla dizilir ve "Hedef N" numaraları bu sıraya göre yeniden verilir:
+ * listedeki "Hedef 1", uygulamanın seçtiği ilk hedefle aynı olsun.
+ */
+/** Yönlü bir eşleşmede seviye hedef sayılır mı (al: fiyatın en az yüzde 1,5 üstü; sat: en az yüzde 1,5 altı). */
+export function hedefGecerli(v: number, yon: 'al' | 'sat', fiyat: number): boolean {
+  const k = kurus(v);
+  const f = kurus(fiyat);
+  return Number.isFinite(k) && k > 0 && (yon === 'al' ? k >= f * HEDEF_ESIK : k <= f / HEDEF_ESIK);
+}
+
+/**
+ * Gerekçedeki hedef cümlesi: yalnız hedef sayılan seviyeler yazılır ("yüzde 38,2 için 12,40 ve yüzde 61,8 için 13,10").
+ * Hiçbiri kalmazsa boş dizi döner; çağıran cümleyi hedefsiz kurar.
+ */
+export function hedefParcalari(parcalar: [string, number][], yon: 'al' | 'sat', fiyat: number): string[] {
+  return parcalar.filter(([, v]) => hedefGecerli(v, yon, fiyat)).map(([ad, v]) => `${ad} için ${f2(v)}`);
+}
+
+export function hedefleriSuz(sev: Record<string, number>, yon: Yon, fiyat: number): Record<string, number> {
+  const diger: [string, number][] = [];
+  const hedefler: [string, number][] = [];
+  for (const [ad, v] of Object.entries(sev)) {
+    if (!HEDEF_AD.test(ad)) { diger.push([ad, v]); continue; }
+    const yukari = yon === 'al' ? true : yon === 'sat' ? false : !/aşağı/i.test(ad) && v > fiyat;
+    const gecerli = yukari ? v >= fiyat * HEDEF_ESIK : v <= fiyat / HEDEF_ESIK;
+    if (gecerli) hedefler.push([ad, v]);
+  }
+  hedefler.sort((a, b) => Math.abs(a[1] - fiyat) - Math.abs(b[1] - fiyat));
+  // Numaralı hedefler (Hedef 1, Hedef 2) her yön için ayrı sayılır; izle eşleşmesinde yukarı ve aşağı karışmaz.
+  const sayac = { yukari: 0, asagi: 0 };
+  const out: Record<string, number> = {};
+  for (const [ad, v] of diger) out[ad] = v;
+  for (const [ad, v] of hedefler) {
+    let yeniAd = ad;
+    if (NUMARALI_HEDEF.test(ad)) {
+      const taraf = v > fiyat ? 'yukari' : 'asagi';
+      sayac[taraf]++;
+      yeniAd = ad.replace(NUMARALI_HEDEF, `Hedef ${sayac[taraf]}`);
+    }
+    out[yeniAd] = v;
+  }
+  return out;
 }
 
 export const kapanislar = (m: { k: number }[]) => m.map((x) => x.k);
@@ -87,9 +155,9 @@ export function belirtmeEki(n: number): string {
   return iyelik + 'n' + iyelik.slice(-1);
 }
 
-/** Çizim noktası: mum sırası i → son mumdan geriye sayım. Fiyat iki ondalığa yuvarlanır. */
+/** Çizim noktası: mum sırası i → son mumdan geriye sayım. Fiyat kuruşa yuvarlanır (kurus). */
 export function nokta(m: Mum[], i: number, fiyat: number, ad: string): CizimNokta {
-  return { g: Math.max(0, m.length - 1 - Math.round(i)), fiyat: Math.round(fiyat * 100) / 100, ad };
+  return { g: Math.max(0, m.length - 1 - Math.round(i)), fiyat: kurus(fiyat), ad };
 }
 
 export function cizgi(a: CizimNokta, b: CizimNokta, tur: CizimCizgi['tur'] = 'trend'): CizimCizgi {

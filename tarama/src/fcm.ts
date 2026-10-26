@@ -1,11 +1,28 @@
+import { appendFileSync } from 'node:fs';
 import { createSign } from 'node:crypto';
 
-import type { BildirimMetni } from './bildirim-metin';
+import { sessizSaatMi, type BildirimMetni } from './bildirim-metin';
 
 /**
  * FCM GÖNDERİCİ — servis hesabından erişim anahtarı alır ve konuya mesaj atar.
  * bildirim.ts (yeni eşleşme, hedef) ve brifing.ts (sabah/hafta) ortak kullanır.
  */
+/**
+ * İş özeti: GitHub Actions'ta koşunun özet sayfasına (GITHUB_STEP_SUMMARY) satır yazar, günlüğe de basar.
+ * "Bildirim gitmedi" gibi durumlar uyarı satırları arasında kaybolmasın, her koşunun özetinde görünsün.
+ */
+export function ozetYaz(satir: string): void {
+  console.log(satir);
+  const yol = process.env.GITHUB_STEP_SUMMARY;
+  if (!yol) return;
+  try { appendFileSync(yol, `${satir}\n`); } catch { /* özet yazılamazsa günlük yeter */ }
+}
+
+/** Son kapı: sessiz saatte (22:00-08:00 TR) hiçbir mesaj çıkmaz. Kuyruk kararı taramada; bu yalnız güvence. */
+export function gonderimSerbestMi(simdiMs = Date.now()): boolean {
+  return !sessizSaatMi(Math.floor(simdiMs / 1000));
+}
+
 export type Hesap = { project_id: string; client_email: string; private_key: string; token_uri: string };
 
 /** Asılı kalan istek iş akışını (10 dk sınırı) yemesin. */
@@ -52,6 +69,11 @@ export async function erisimAnahtari(hesap: Hesap): Promise<string> {
 
 /** Konuya tek mesaj. Başarılıysa true; hata fırlatmaz (bir konunun düşmesi ötekileri durdurmasın), çağıran sayar. */
 export async function gonder(hesap: Hesap, anahtar: string, konu: string, metin: BildirimMetni, veri: Record<string, string>): Promise<boolean> {
+  if (!gonderimSerbestMi()) {
+    console.error(konu, 'gönderilmedi: sessiz saat (22:00-08:00 TR).');
+    return false;
+  }
+  // Öncelik ve ses korunur: sessiz saat kuralıyla bildirim zaten gündüz (sabah) gider.
   const govde = {
     message: {
       topic: konu,

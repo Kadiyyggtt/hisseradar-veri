@@ -5,7 +5,8 @@ import { pivotlar } from './gostergeler/pivot';
 import { heikin } from './gostergeler/heikin';
 import { rsi } from './gostergeler/rsi';
 import { enAzMum, TARAYICI_EN_AZ_MUM, TARAYICILAR } from './stratejiler';
-import { eslesme } from './stratejiler/ortak';
+import { eslesme, HEDEF_ESIK, kurus } from './stratejiler/ortak';
+import { esnekDYuzde } from './stratejiler/formasyonlar';
 import { bildirimMetni, haftaSonuMu, haftalikOzet, hedefBildirimMetni, hedefKonusu, sabahBrifingi, TARAMA_ADLARI, veriGuncelMi } from './bildirim-metin';
 import { EN_AZ_HEDEF_ORANI, esikAltiKayit, hedefeUlasanlar, ilkHedef, KAYIT_GUN, sicilIlerlet, SURE_GUN } from './sicil';
 import { hataTuru, VeriHatasi, yahooCoz } from './veri/yahoo';
@@ -558,6 +559,55 @@ console.log('abcd: D bölgesi ve gerçek hedef');
   }
 }
 
+// SAHTE ÇIKIŞ: gerekçe grafikle çelişmesin. Banda değip altına kapanan seri eşleşmez; gün sayısı gerçek dipten sayılır.
+console.log('sahte çıkış: bant ve dönüş günü');
+{
+  // Dip 80, tepe 120 (%50 yükseliş), maliyet bandı %61,8 = 95,28 (± %3: 92,42 ile 98,14).
+  const maliyet = 120 + (80 - 120) * 0.618;
+  const taban = [...sabit(60, 104), ...dogrusal(20, 104, 80).slice(1), ...dogrusal(20, 80, 120).slice(1), ...dogrusal(15, 120, maliyet).slice(1)];
+  const sahte = tarayici('sahte-cikis');
+  // Uymalı: banda indi, 5 gün yukarı döndü (99), hedef 104,81 fiyatın üstünde.
+  const iyi = sahte.tara(seri(mumla([...taban, ...dogrusal(6, maliyet, 99).slice(1)], undefined, 0.002)), ORTAM);
+  kontrol('sahte çıkış: banda inip dönen seri uymalı', iyi !== null && iyi.yon === 'al', iyi ? '' : 'null');
+  kontrol('sahte çıkış: gün sayısı dipten (5 gün önce)', !!iyi && /Dip [\d.,]+, 5 gün önce/.test(iyi.aciklama[0]), iyi?.aciklama[0]);
+  kontrol('sahte çıkış: "0 gün" yazmaz', !!iyi && !/\b0 gün/.test(iyi.aciklama.join(' ')), iyi?.aciklama[0]);
+  kontrol('sahte çıkış: hedef fiyatın en az %1,5 üstünde', !!iyi && (iyi.seviyeler?.['%38,2 hedefi'] ?? 0) >= iyi.fiyat * EN_AZ_HEDEF_ORANI, JSON.stringify(iyi?.seviyeler));
+  // Uymamalı: banda değdi, sonra 86'ya düştü ve 89,5'e tepki verdi (dipten %4 yukarı, ama kapanış bandın %6 altında).
+  // Eski kod bu seriye "Satış, maliyet bandında durdu ve fiyat 5 gündür yukarı dönüyor" diyordu.
+  const kotu = [...taban, ...dogrusal(5, maliyet, 86).slice(1), ...dogrusal(3, 86, 89.5).slice(1)];
+  kontrol('sahte çıkış: banda değip altına düşen seri uymaz', sahte.tara(seri(mumla(kotu, undefined, 0.002)), ORTAM) === null);
+  // Uymamalı: bandın hemen altına (88) sarktı, 4 gündür yükseliyor ama son kapanış hâlâ bandın altında (92 < 92,42).
+  const sonAlt = [...taban, ...dogrusal(4, maliyet, 88).slice(1), ...dogrusal(5, 88, 92).slice(1)];
+  kontrol('sahte çıkış: son kapanış bandın altındaysa uymaz', sahte.tara(seri(mumla(sonAlt, undefined, 0.002)), ORTAM) === null);
+  // Uymamalı: dip bugün. Bugünkü mumun fitili bandın içinde (93,5) ve kapanış ondan %4 yukarıda; eski kod "0 gündür yukarı dönüyor" diyordu.
+  const dipBugunM = mumla([...taban, ...dogrusal(4, maliyet, 97.5).slice(1)], undefined, 0.002);
+  const onceki = dipBugunM[dipBugunM.length - 1];
+  dipBugunM.push({ t: onceki.t + 86400, a: 97.5, y: 98, d: 93.5, k: 97.5, h: 1000 });
+  kontrol('sahte çıkış: dip bugünse uymaz (dönüş 0 gün)', sahte.tara(seri(dipBugunM), ORTAM) === null);
+}
+
+// ESNEK ABCD 1/C: yüzde = 10000 / C, dört ondalıklı katsayı (ders 1/52 = 0,0192 → 192 öğretir).
+console.log('esnek abcd: 1 bölü C');
+{
+  kontrol('1/84 → yüzde 119', esnekDYuzde(84) === 119, String(esnekDYuzde(84)));
+  kontrol('1/52 → yüzde 192', esnekDYuzde(52) === 192, String(esnekDYuzde(52)));
+  kontrol('1/95 → yüzde 105', esnekDYuzde(95) === 105, String(esnekDYuzde(95)));
+}
+
+// HEDEF SÜZGECİ: yön yukarıysa fiyatın %1,5 üstünde olmayan seviye "hedef" adını taşımaz; liste sıralı ve numaralar sırayla.
+console.log('hedef süzgeci');
+{
+  kontrol('hedef eşiği sicil ve uygulama ile aynı (1,015)', HEDEF_ESIK === EN_AZ_HEDEF_ORANI);
+  const g = mumla(dogrusal(30, 10, 20)); // son kapanış 20
+  const e = eslesme(seri(g), 'x', '1d', 'al', 50, ['a'], { 'Hedef 1 (yakın)': 20.1, 'Hedef 2 (uzak)': 22, '%38,2 hedefi': 19, 'Hedef 3 (orta)': 21, Stop: 18 });
+  kontrol('al: fiyatın altındaki ve %1,5 yakınındaki hedef atılır, kalanlar sırayla numaralanır',
+    !!e && JSON.stringify(e.seviyeler) === JSON.stringify({ Stop: 18, 'Hedef 1 (orta)': 21, 'Hedef 2 (uzak)': 22 }), JSON.stringify(e?.seviyeler));
+  const s2 = eslesme(seri(g), 'x', '1d', 'sat', 50, ['a'], { 'Hedef (aşağı)': 18, 'Hedef (yukarı)': 23, 'Hedef 1 (yakın)': 19.9 });
+  kontrol('sat: fiyatın üstündeki ve yakınındaki hedef atılır', !!s2 && JSON.stringify(s2.seviyeler) === JSON.stringify({ 'Hedef (aşağı)': 18 }), JSON.stringify(s2?.seviyeler));
+  const iz = eslesme(seri(g), 'x', '1d', 'izle', 50, ['a'], { 'Hedef (yukarı)': 23, 'Hedef (aşağı)': 17, 'Hedef (formasyon boyu)': 20.2 });
+  kontrol('izle: iki yönlü hedef kalır, fiyata %1,5 yakını atılır', !!iz && Object.keys(iz.seviyeler ?? {}).length === 2 && !('Hedef (formasyon boyu)' in (iz.seviyeler ?? {})), JSON.stringify(iz?.seviyeler));
+}
+
 // eslesme(): bozuk fiyat ve seviye süzgeci.
 console.log('eslesme süzgeci');
 {
@@ -746,6 +796,7 @@ console.log('sentetik seriler (3000 rastgele + uç durumlar)');
   const satirlar = Object.entries(bulgu).map(([a, { n, ornek }]) => `${n}× ${a} [${ornek}]`);
   kontrol('sentetik: çökme, NaN, sıfır/eksi seviye, bozuk çizim yok', satirlar.length === 0, '\n    ' + satirlar.join('\n    '));
   const eslesen = Object.keys(say).length;
+  console.log('  3000 seri eşleşme sayıları: ' + Object.entries(say).sort((a, b) => b[1] - a[1]).map(([id, n]) => `${id} ${n}`).join(', '));
   kontrol('sentetik: tarayıcıların çoğu en az bir kez eşleşti (sınama gerçekten çalıştı)', eslesen >= TARAYICILAR.length - 3, `${eslesen}/${TARAYICILAR.length}`);
 }
 
@@ -757,6 +808,60 @@ console.log('sentetik seriler (3000 rastgele + uç durumlar)');
   const kapsanan = new Set(uretilen.map((e) => e.taramaId)).size;
   kontrol(`tavsiye dili yok (${uretilen.length} eşleşme, ${kapsanan} tarayıcı)`, bulunan.size === 0, [...bulunan].map(([id, c]) => `${id}: ${c}`).join(' | '));
   kontrol('tavsiye taraması bütün tarayıcıları kapsıyor', kapsanan === TARAYICILAR.length, TARAYICILAR.map((t) => t.id).filter((id) => !uretilen.some((e) => e.taramaId === id)).join(', '));
+}
+
+// ÇIKTI BİÇİMİ: bütün üretilen eşleşmelerde (sentetik 3000 seri + örnekler) kuruş, hedef yönü, sıra, dil, etiket biçimi.
+console.log('çıktı biçimi (tüm üretilen eşleşmeler)');
+{
+  const ilk = new Map<string, string>();
+  const yaz = (tur: string, ornek: string) => { if (!ilk.has(tur)) ilk.set(tur, ornek); };
+  // Kuruş: 1'in üstünde 2 ondalık (Math.round(x*100)/100 === x), altında 4 ondalık. Float32 artığı (343.86260986328125) kalmasın.
+  const kurusMu = (x: number) => (Math.abs(x) < 1 ? Math.round(x * 10000) / 10000 === x : Math.round(x * 100) / 100 === x);
+  const sayiDuz = (t: string) => Number(t.replace(/\./g, '').replace(',', '.'));
+  for (const e of uretilen) {
+    const id = e.taramaId;
+    if (!kurusMu(e.fiyat)) yaz('fiyat kuruşa yuvarlanmamış', `${id} ${e.fiyat}`);
+    for (const [ad, v] of Object.entries(e.seviyeler ?? {})) if (!kurusMu(v)) yaz('seviye kuruşa yuvarlanmamış', `${id} ${ad}=${v}`);
+    for (const q of [...(e.cizim?.noktalar ?? []), ...(e.cizim?.cizgiler ?? []).flatMap((l) => [l.a, l.b])]) if (!kurusMu(q.fiyat)) yaz('çizim fiyatı kuruşa yuvarlanmamış', `${id} ${q.fiyat}`);
+    // Hedef yönü: al → fiyat × 1,015 ve üstü; sat → fiyat ÷ 1,015 ve altı; izle → fiyatın %1,5'inden yakın hedef yok.
+    const hedefler = Object.entries(e.seviyeler ?? {}).filter(([ad]) => /hedef/i.test(ad));
+    for (const [ad, v] of hedefler) {
+      const ok = e.yon === 'al' ? v >= e.fiyat * HEDEF_ESIK : e.yon === 'sat' ? v <= e.fiyat / HEDEF_ESIK : v >= e.fiyat * HEDEF_ESIK || v <= e.fiyat / HEDEF_ESIK;
+      if (!ok) yaz(`${e.yon} yönünde fiyatın yanlış yanında "hedef"`, `${id} ${ad}=${v} fiyat ${e.fiyat}`);
+    }
+    // Sıra: hedefler fiyata yakınlık sırasıyla; "Hedef N" numaraları her yönde 1'den başlayıp sırayla artar.
+    const uzak = hedefler.map(([, v]) => Math.abs(v - e.fiyat));
+    if (uzak.some((u, j) => j > 0 && u < uzak[j - 1])) yaz('hedef listesi fiyata yakınlık sırasında değil', `${id} ${JSON.stringify(hedefler)}`);
+    for (const yukari of [true, false]) {
+      const no = hedefler.filter(([ad, v]) => /^Hedef \d+/.test(ad) && v > e.fiyat === yukari).map(([ad]) => Number(ad.match(/^Hedef (\d+)/)![1]));
+      if (no.some((n, j) => n !== j + 1)) yaz('Hedef numaraları liste sırasıyla aynı değil', `${id} ${JSON.stringify(hedefler)}`);
+    }
+    if (e.yon === 'al' && hedefler.length && ilkHedef(e) !== hedefler[0][1]) yaz('karnenin ilk hedefi listenin ilk hedefi değil', `${id} ${ilkHedef(e)} / ${hedefler[0][1]}`);
+    // Gerekçe: "hedef" geçen cümle parçasında fiyatın yanlış yanında bir fiyat seviyesi yazılmasın (AKFYE: "Yüzde 38,2 hedefi 3,59", fiyat 3,65).
+    if (e.yon !== 'izle') for (const c of e.aciklama) for (const parca of c.split(/[.;:] /)) {
+      if (!/hedef/i.test(parca)) continue;
+      for (const t of parca.match(/\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)/g) ?? []) {
+        const v = sayiDuz(t);
+        const yanlis = e.yon === 'al' ? v >= e.fiyat * 0.7 && v < e.fiyat * HEDEF_ESIK : v <= e.fiyat / 0.7 && v > e.fiyat / HEDEF_ESIK;
+        if (yanlis) yaz('gerekçede fiyatın yanlış yanında hedef', `${id} [${parca}] fiyat ${e.fiyat}`);
+      }
+    }
+    const metin = e.aciklama.join(' | ');
+    // Tahmin dili yok: kural tarif edilir ("kırılırsa yükseliş şartı sağlanır").
+    if (/beklen|yön al|al ya da sat/i.test(metin)) yaz('tahmin/emir dili', `${id} ${metin.match(/[^.|]*(beklen|yön al|al ya da sat)[^.|]*/i)?.[0]}`);
+    // Etiket/cümle biçimi: seviye adları kısa etiket ("%38,2"), gerekçe cümleleri sesli okunur ("yüzde 38,2").
+    for (const ad of Object.keys(e.seviyeler ?? {})) if (/yüzde/i.test(ad)) yaz('seviye etiketinde "yüzde" (etiket "%" ile yazılır)', `${id} ${ad}`);
+    if (/%\s?\d/.test(metin)) yaz('gerekçe cümlesinde "%" (cümle "yüzde" ile yazılır)', `${id} ${metin.slice(0, 100)}`);
+    if (/yüzde 1(27|61) (için|ve|ile|ya da)/.test(metin)) yaz('ABCD ölçüsü yuvarlak yazılmış (127,2 / 161,8 olmalı)', `${id} ${metin.slice(0, 160)}`);
+    // Esnek ABCD: "1 bölü C eşittir K, yani D bölgesi yüzde H" hesapla aynı.
+    if (id === 'abcd-esnek') {
+      const r = metin.match(/1 bölü (\d+) eşittir (0,\d{4}), yani D bölgesi yüzde (\d+)/);
+      if (!r) yaz('esnek ABCD 1/C cümlesi yok', metin.slice(0, 160));
+      else if (r[2] !== (1 / Number(r[1])).toFixed(4).replace('.', ',') || Number(r[3]) !== Math.round(10000 / Number(r[1]))) yaz('esnek ABCD 1/C hesabı yanlış', r[0]);
+    }
+  }
+  kontrol(`çıktı biçimi temiz (${uretilen.length} eşleşme)`, ilk.size === 0, '\n    ' + [...ilk].map(([t, o]) => `${t}: ${o}`).join('\n    '));
+  kontrol('çıktı biçimi sınaması gerçekten hedefli eşleşme gördü', uretilen.filter((e) => Object.keys(e.seviyeler ?? {}).some((ad) => /hedef/i.test(ad))).length > 1000);
 }
 
 console.log(`\n${gecti} geçti, ${hata} hata`);

@@ -19,9 +19,13 @@
  * Yahoo süzgeci (tarama Yahoo'dan okur): her BIST adayı Yahoo'da sınanır. Yahoo'da
  * olmayan (404: ALTIN, DMLKT gibi sertifikalar), türü hisse olmayan ya da 60'tan az
  * günlük mumu olan (yeni halka arz) sembol listeye girmez; her koşuda "hatalı" sayılıyordu.
+ *
+ * Türkçe ad sözlüğü: evren.ts içindeki "<<KORUNAN … KORUNAN>>" bloğu (TURKCE_AD, ABD_AD,
+ * adDuzelt) elle yazılır ve araç onu OLDUĞU GİBİ taşır. Sözlükte olan sembolün adı sözlükten
+ * gelir; kaynak adı onu ezmez. Blok bulunamazsa dosya yazılmaz.
  */
-import { writeFileSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const KURU = process.argv.includes('--kuru');
@@ -113,7 +117,7 @@ const EKLER = ['Anonim Ortaklığı', 'Anonim Ortakligi', 'Anonim Şirketi', 'An
 const KALIPLAR = ['Sanayi ve Ticaret', 'Sanayi Ve Ticaret', 'Ticaret ve Sanayi', 'Ticaret Ve Sanayi', 'San. ve Tic.', 'San. Ve Tic.', 'San. Tic.', 'Sanayii', 'Sanayi', 'Ticaret', 'Tic.', 'San.',
   'Taahhüt', 'Taahhut', 'İşletmeleri', 'Isletmeleri', 'Üretim', 'Uretim', 'Toptan', 'Pazarlama', 'Companies'];
 const kacir = (m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-function sadelestir(ad) {
+export function sadelestir(ad) {
   let s = ` ${ad.replace(/\s*\(.*?\)\s*/g, ' ').replace(/Gayrimenkul Yat[ıi]r[ıi]m Ortakl[ıi][ğg][ıi]/g, 'GYO')} `;
   for (const ek of EKLER) s = s.replace(new RegExp(`\\s${kacir(ek)}(?=[\\s,])`, 'g'), ' ');
   for (const k of KALIPLAR) s = s.replace(new RegExp(`\\s${kacir(k)}(?=[\\s,])`, 'g'), ' ');
@@ -177,6 +181,27 @@ async function yahooSuz(liste) {
   return { kalan, elenen };
 }
 
+const KORUNAN_BAS = '// <<KORUNAN';
+const KORUNAN_SON = '// KORUNAN>>';
+
+/** Eski evren.ts'den elle yazılmış bloğu çıkar (işaretler dahil). Yoksa hata: sözlük sessizce kaybolmasın. */
+export function korunanBlok(eski) {
+  const bas = eski.indexOf(KORUNAN_BAS);
+  const son = eski.indexOf(KORUNAN_SON);
+  if (bas < 0 || son < bas) throw new Error('evren.ts içinde Türkçe ad sözlüğü bloğu (// <<KORUNAN … // KORUNAN>>) bulunamadı; dosya yazılmadı.');
+  return eski.slice(bas, son + KORUNAN_SON.length);
+}
+
+/** Bloktaki TURKCE_AD sözlüğü: kod → ad. Satır biçimi `  THYAO: "Türk Hava Yolları",`. */
+export function sozlukOku(blok) {
+  const bas = blok.indexOf('export const TURKCE_AD');
+  const son = blok.indexOf('};', bas);
+  const sozluk = new Map();
+  if (bas < 0 || son < 0) return sozluk;
+  for (const m of blok.slice(bas, son).matchAll(/^\s+([A-Z0-9]+): (".*"),\s*$/gm)) sozluk.set(m[1], JSON.parse(m[2]));
+  return sozluk;
+}
+
 function tsDizi(ad, liste) {
   const satirlar = liste.map((h) => `  { kod: '${h.kod}', ad: ${JSON.stringify(h.ad)}, sektor: ${JSON.stringify(h.sektor)} },`);
   return `export const ${ad}: Hisse[] = [\n${satirlar.join('\n')}\n];`;
@@ -194,6 +219,9 @@ async function main() {
     vikipediAdlari(),
   ]);
 
+  // Sözlük önce okunur: blok yoksa ağ işi boşa gitmesin diye değil, sözlüksüz dosya hiç yazılmasın diye.
+  const blok = korunanBlok(existsSync(HEDEF) ? readFileSync(HEDEF, 'utf8') : '');
+  const sozluk = sozlukOku(blok);
   const bilinmeyenSektor = new Set();
   const sektor = (s) => { if (!s) return 'Diğer'; if (!SEKTOR_TR[s]) bilinmeyenSektor.add(s); return SEKTOR_TR[s] ?? 'Diğer'; };
 
@@ -203,7 +231,7 @@ async function main() {
     if (!/^[A-Z]{3,6}$/.test(kod)) continue;
     const ciro = (hacim ?? 0) * (kapanis ?? 0);
     if (ciro < CIRO_ESIK && (deger ?? 0) < DEGER_ESIK) continue;
-    bist.push({ kod, ad: wiki.get(kod) ?? sadelestir(tvAd ?? kod), sektor: sektor(sek), ciro });
+    bist.push({ kod, ad: sozluk.get(kod) ?? wiki.get(kod) ?? sadelestir(tvAd ?? kod), sektor: sektor(sek), ciro });
   }
   bist.sort((a, b) => b.ciro - a.ciro);
   const { kalan: bistSuzulmus, elenen } = await yahooSuz(bist);
@@ -239,11 +267,21 @@ async function main() {
 
   console.log(`BIST ${bist.length} hisse (ciro ≥ ${CIRO_ESIK / 1e6} M₺ ya da değer ≥ ${DEGER_ESIK / 1e9} Mr₺), ABD ${abd.length}.`);
   console.log(`Vikipedi adı olmayan BIST: ${bist.filter((h) => !wiki.has(h.kod)).map((h) => h.kod).join(', ') || 'yok'}`);
+  const sozluksuz = bist.filter((h) => !sozluk.has(h.kod));
+  if (sozluksuz.length) console.warn(`Türkçe ad sözlüğünde olmayan ${sozluksuz.length} BIST sembolü (adDuzelt ile gösterilir; TURKCE_AD'a elle ekle): ${sozluksuz.map((h) => `${h.kod} "${h.ad}"`).join(', ')}`);
   if (KURU) return;
 
-  const tarih = new Date().toISOString().slice(0, 10);
-  const icerik = `/**
- * TARANAN EVREN — ÜRETİLMİŞ DOSYA, elle düzenleme; \`node tarama/arac/evren-guncelle.mjs\` yeniden yazar.
+  writeFileSync(HEDEF, evrenMetni({ tarih: new Date().toISOString().slice(0, 10), bist: bist.map(({ kod, ad, sektor }) => ({ kod, ad, sektor })), abd, blok }));
+  console.log(`Yazıldı: ${HEDEF}`);
+}
+
+/** evren.ts metni: başlık, arayüz, korunan blok, kaynak listeleri, türetilen dışa aktarımlar. Saf. */
+export function evrenMetni({ tarih, bist, abd, blok }) {
+  const sozluk = sozlukOku(blok);
+  const bistAdli = bist.map((h) => ({ ...h, ad: sozluk.get(h.kod) ?? h.ad }));
+  return `/**
+ * TARANAN EVREN — ÜRETİLMİŞ DOSYA; \`node tarama/arac/evren-guncelle.mjs\` yeniden yazar. Elle düzenlenen
+ * tek yer "<<KORUNAN … KORUNAN>>" bloğu (Türkçe ad sözlüğü): araç onu olduğu gibi taşır.
  * Son üretim: ${tarih}. Kural: BIST'te günlük ortalama ciro ≥ ${CIRO_ESIK / 1e6} milyon ₺ ya da piyasa
  * değeri ≥ ${DEGER_ESIK / 1e9} milyar ₺ (ciroya göre sıralı; SINIR ile deneme en likitleri alır). ABD sabit liste.
  * Ad ve sektör uygulamada kodun yanında gösterilir; grafik.json'a yazılır.
@@ -256,9 +294,15 @@ export interface Hisse {
   sektor: string;
 }
 
-${tsDizi('BIST_HISSELER', bist.map(({ kod, ad, sektor }) => ({ kod, ad, sektor })))}
+${blok}
 
-${tsDizi('ABD_HISSELER', abd)}
+/** Kaynak listeleri: sözlükteki BIST sembolünün adı sözlükten yazılır; gösterilen ad her zaman \`hisseAdi\`dan geçer. */
+${tsDizi('BIST_KAYNAK', bistAdli)}
+
+${tsDizi('ABD_KAYNAK', abd)}
+
+export const BIST_HISSELER: Hisse[] = BIST_KAYNAK.map((h) => ({ ...h, ad: hisseAdi(h.kod, 'BIST', h.ad) }));
+export const ABD_HISSELER: Hisse[] = ABD_KAYNAK.map((h) => ({ ...h, ad: hisseAdi(h.kod, 'ABD', h.ad) }));
 
 export const BIST: string[] = BIST_HISSELER.map((h) => h.kod);
 export const ABD: string[] = ABD_HISSELER.map((h) => h.kod);
@@ -275,11 +319,12 @@ export function yahooSembol(sembol: string, piyasa: 'BIST' | 'ABD'): string {
   return piyasa === 'BIST' ? \`\${sembol}.IS\` : sembol;
 }
 `;
-  writeFileSync(HEDEF, icerik);
-  console.log(`Yazıldı: ${HEDEF}`);
 }
 
-main().catch((e) => {
-  console.error('evren güncellenemedi:', e.message);
-  process.exit(1);
-});
+// Yalnız doğrudan çalıştırılınca: sınama (sina-altyapi.ts) saf işlevleri içe aktarır, ağa çıkmaz.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error('evren güncellenemedi:', e.message);
+    process.exit(1);
+  });
+}

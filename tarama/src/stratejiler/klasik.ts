@@ -10,7 +10,7 @@ export const yukselenDipler: Tarayici = {
     if (p.length < 3) return null;
     if (!(p[0].fiyat < p[1].fiyat && p[1].fiyat < p[2].fiyat)) return null;
     return eslesme(s, 'yukselen-dipler', '1d', 'izle', 100,
-      [`Son üç dip sırasıyla ${f2(p[0].fiyat)}, ${f2(p[1].fiyat)} ve ${f2(p[2].fiyat)} ile yükseliyor.`, 'Yükseliş öngörüsü için ön şart sağlanıyor.']);
+      [`Son üç dip sırasıyla ${f2(p[0].fiyat)}, ${f2(p[1].fiyat)} ve ${f2(p[2].fiyat)} ile yükseliyor.`, 'Kuralın yükseliş için aradığı ön şart (yükselen dipler) sağlanıyor.']);
   },
 };
 
@@ -49,7 +49,7 @@ export const kuyrukluW: Tarayici = {
         [
           `${i - j} gün önce uzun alt kuyruklu bir dip mumu oluştu. Kutu ${f2(kutuAlt)} ile ${f2(kutuUst)} arasında.`,
           `Tepki tepesi ${f2(tepe)}. Fiyat kutuya geri döndü ama kapanış kutunun altına inmedi.`,
-          ortaUstKapanis ? `Bugünkü kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde. Şartların tamamı sağlandı.` : `W'nin orta tepesi olan ${f2(tepe)} seviyesinin üstünde kapanış bekleniyor.`,
+          ortaUstKapanis ? `Bugünkü kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde. Şartların tamamı sağlandı.` : `W'nin orta tepesi olan ${f2(tepe)} seviyesinin üstünde kapanış henüz yok; kural bu kapanışı şart sayar.`,
         ],
         { 'Kutunun altı': kutuAlt, 'Kutunun üstü': kutuUst, 'Orta tepe': tepe });
     }
@@ -84,7 +84,7 @@ export const darBayrak: Tarayici = {
       [
         `Direk: ${enYI - enDI} günde ${f2(enD)} seviyesinden ${f2(enY)} seviyesine yüzde ${(getiri * 100).toFixed(0)} yükseliş.`,
         `Bayrak: ${bayrak.length} gün sürdü, derinliği yüzde ${(derinlik * 100).toFixed(0)}. Sınır yüzde 25.`,
-        kirildi ? 'Bayrağın tepesi kapanışla aşıldı.' : `${f2(enY)} seviyesinin kırılması bekleniyor.`,
+        kirildi ? 'Bayrağın tepesi kapanışla aşıldı.' : `${f2(enY)} seviyesi henüz kırılmadı.`,
       ],
       { 'Bayrak tepesi': enY, 'Hedef (direk boyu)': enY + (enY - enD) });
   },

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { bildirimMetni, hedefBildirimMetni, hedefKonusu } from './bildirim-metin';
-import { erisimAnahtari, gonder, hesabiOku } from './fcm';
+import { erisimAnahtari, gonder, gonderimSerbestMi, hesabiOku, ozetYaz } from './fcm';
 import type { Eslesme, HedefDosyasi, HedefUlasan } from './tipler';
 
 /**
@@ -13,7 +13,11 @@ import type { Eslesme, HedefDosyasi, HedefUlasan } from './tipler';
  * Token saklayan sunucu yok.
  *
  * Gerekli gizli değer: FCM_SERVIS_HESABI (service account JSON, base64).
- * Yoksa sessizce atlanır; tarama yine çalışır.
+ * Yoksa bildirim gitmez, tarama yine çalışır; durum her koşunun iş özetine yazılır.
+ *
+ * Sessiz saat (22:00-08:00 TR): tarama o koşunun bildirimlerini bekleyen.json kuyruğuna koyar ve
+ * yeni.json'a `sessiz: true` yazar; burada hiçbir şey gönderilmez. Sabahki ilk koşu kuyruğu
+ * yeni.json ve hedef.json'a katar, bildirimler o zaman gider.
  */
 // npm betikleri proje kökünden çalışır.
 const KOK = process.cwd();
@@ -27,15 +31,25 @@ function oku<T>(ad: string): T | null {
 async function main() {
   const hesap = hesabiOku();
   if (!hesap) {
-    console.log('FCM_SERVIS_HESABI yok, bildirim atlandı.');
+    ozetYaz('### Bildirim GÖNDERİLMEDİ\nFCM_SERVIS_HESABI gizli değeri tanımlı değil; bu koşuda hiçbir eşleşme ya da hedef bildirimi gitmedi. Depo ayarları > Secrets > Actions altına base64 servis hesabı eklenmeli.');
     return;
   }
-  const yeni = oku<{ uretildi: number; eslesmeler: Eslesme[] }>('yeni.json');
+  const yeni = oku<{ uretildi: number; eslesmeler: Eslesme[]; sessiz?: boolean }>('yeni.json');
   if (!yeni) throw new Error('yeni.json yok; önce tarama koşmalı.');
   // yeni.json bu koşunun değilse (hafta sonu koşusu boş farkla eskisini korur) aynı bildirim ikinci kez gitmesin.
   const ozet = oku<{ uretildi: number }>('ozet.json');
   if (ozet && ozet.uretildi !== yeni.uretildi) {
-    console.log('yeni.json bu koşudan değil; bildirim atlandı.');
+    ozetYaz('Bildirim: yeni.json bu koşudan değil, gönderilmedi.');
+    return;
+  }
+  if (yeni.sessiz) {
+    ozetYaz(`Bildirim: sessiz saat (22:00-08:00 TR); ${yeni.eslesmeler.length} yeni eşleşme kuyrukta (bekleyen.json), sabahki ilk koşuda gidecek.`);
+    return;
+  }
+  // Tarama sessiz saatten önce bitti ama bu adım 22:00'ı geçtiyse: göndermek kuralı bozar.
+  if (!gonderimSerbestMi()) {
+    console.log('::warning::Bildirim adımı sessiz saate taştı.');
+    ozetYaz('Bildirim: tarama sessiz saatten önce bitti ama bildirim adımı 22:00 TR sonrasına kaldı; bu koşunun bildirimleri gönderilmedi.');
     return;
   }
   const sinyaller = yeni.eslesmeler.filter((e) => e.yon === 'al' || e.yon === 'sat');
@@ -43,7 +57,7 @@ async function main() {
   const hedef = oku<HedefDosyasi>('hedef.json');
   const ulasanlar = hedef && hedef.uretildi === yeni.uretildi ? hedef.ulasanlar : [];
   if (!sinyaller.length && !ulasanlar.length) {
-    console.log('Yeni al/sat eşleşmesi ve hedefe ulaşan yok.');
+    ozetYaz('Bildirim: yeni eşleşme ve hedefe ulaşan yok, gönderilecek bir şey yok.');
     return;
   }
   const anahtar = await erisimAnahtari(hesap);
@@ -70,7 +84,7 @@ async function main() {
     const { piyasa, sembol } = liste[0];
     if (metin) say(await gonder(hesap, anahtar, hedefKonusu(piyasa, sembol), metin, { tur: 'hedef', piyasa, sembol }));
   }
-  console.log(`Bildirim: ${gonderilen} gönderildi, ${basarisiz} başarısız.`);
+  ozetYaz(`Bildirim: ${gonderilen} gönderildi, ${basarisiz} başarısız.`);
   if (basarisiz) process.exitCode = 1;
 }
 

@@ -1,15 +1,21 @@
 name: Tarama
 
-# Günde dört kez, hafta içi: BIST açılış sonrası (10:17 TR), BIST gün ortası (13:47 TR),
-# BIST kapanış sonrası (18:17 TR), ABD kapanış sonrası (00:47 TR; ABD 16:00 ET kapanışı
-# yaz saatinde 20:00, kışın 21:00 UTC). Saatler UTC; Türkiye UTC+3.
-# Dakikalar 0/30'dan uzak: GitHub o dakikalarda kuyruğu dolduruyor, iş gecikiyor ya da düşüyor.
+# Hafta içi günde dört kez. Saatler UTC; Türkiye UTC+3:
+#   07:23 UTC (10:23 TR)  BIST açılış sonrası; günün ilk sabah koşusu sabah brifingini de gönderir
+#   10:53 UTC (13:53 TR)  BIST gün ortası
+#   15:23 UTC (18:23 TR)  BIST kapanış sonrası
+#   21:53 UTC (00:53 TR)  ABD kapanış sonrası (16:00 ET = yaz saatinde 20:00, kışın 21:00 UTC); gereklidir.
+#                         Sessiz saatte (22:00-08:00 TR) koştuğu için bildirimi gönderilmez,
+#                         bekleyen.json kuyruğuna girer ve sabahki ilk koşuda gider.
+# GitHub cron'u saat başı, yarım ve çeyrek dakikalarda kuyruğu dolduruyor; koşular saatlerce gecikebilir
+# (Ekim 2026: 07:17 → 12:44). Bu yüzden dakikalar :23 ve :53. Gecikme brifingi kaydırmaz: brifing ayrı
+# cron'la değil, günün ilk sabah koşusunun sonunda gider (tara → yayınla → bildir → brifing).
 on:
   schedule:
-    - cron: '17 7 * * 1-5'
-    - cron: '47 10 * * 1-5'
-    - cron: '17 15 * * 1-5'
-    - cron: '47 21 * * 1-5'
+    - cron: '23 7 * * 1-5'
+    - cron: '53 10 * * 1-5'
+    - cron: '23 15 * * 1-5'
+    - cron: '53 21 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +28,7 @@ concurrency:
 jobs:
   tara:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,17 +36,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+        timeout-minutes: 5
       - name: Tarayıcıları sına
         run: npm run tara:test
+        timeout-minutes: 5
       - name: Tara
         run: npm run tara
+        timeout-minutes: 30
         env:
           ESZAMANLI: '3'
       - name: Sonucu depoya yaz
+        timeout-minutes: 3
         run: |
           git config user.name "hisseradar-tarama"
           git config user.email "tarama@users.noreply.github.com"
-          git add docs/tarama
+          # bekleyen.json (sessiz saat kuyruğu) sabah boşalınca silinir; silme de commit'e girsin.
+          git add -A docs/tarama
           git diff --cached --quiet && echo "değişiklik yok" && exit 0
           git commit -m "Tarama sonucu $(date -u +'%Y-%m-%d %H:%M') UTC"
           # Koşu sürerken main'e başka commit gelmiş olabilir (24 Ekim: push reddedildi, sonuç yayınlanmadı): üç kez çekip yeniden dene.
@@ -51,9 +62,20 @@ jobs:
           echo "sonuç gönderilemedi" && exit 1
       # Bildirim yayından SONRA: push düşerse iş burada durur, sonraki koşu aynı farkı yeniden
       # bulup bildirir; önce gönderip sonra yayımlayamazsak aynı bildirim ikinci kez giderdi.
-      # FCM hatası taramanın başarısını bozmaz (sonuç zaten yayında).
+      # FCM hatası taramanın başarısını bozmaz (sonuç zaten yayında). Gizli değer yoksa ya da
+      # sessiz saatse durum her koşunun iş özetine (Summary) yazılır.
       - name: Bildirim gönder
         continue-on-error: true
+        timeout-minutes: 5
         run: npm run bildir
         env:
+          FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}
+      # Sabah brifingi: yalnız günün ilk sabah koşusunda (yeni.json sabahIlk) gönderilir; diğer koşularda
+      # özet satırı "ilk koşu değil" der. Hafta sonu ve sessiz saatte sabahIlk zaten false.
+      - name: Sabah brifingi
+        continue-on-error: true
+        timeout-minutes: 5
+        run: npm run brifing -- sabah
+        env:
+          ILK_KOSU: '1'
           FCM_SERVIS_HESABI: ${{ secrets.FCM_SERVIS_HESABI }}

@@ -57,8 +57,8 @@ export const sma30w: Tarayici = {
     if (g < 0) return null;
     const i = m.length - 1 - g;
     return eslesme(s, 'sma30w', '1w', 'al', 100,
-      [`Haftalık kapanış, 30 haftalık ortalamayı (${f2(o[i])}) ${g === 0 ? 'bu hafta' : 'geçen hafta'} yukarı kesti.`, 'Kâr hedefi yüzde 10 ile 15 arası, stop 30 haftalık ortalamanın altıdır.'],
-      { '30 haftalık ortalama': o[i], 'Yüzde 10 hedefi': m[i].k * 1.1, 'Yüzde 15 hedefi': m[i].k * 1.15 });
+      [`Haftalık kapanış, 30 haftalık ortalamayı (${f2(o[i])}) ${g === 0 ? 'bu hafta' : 'geçen hafta'} yukarı kesti.`, 'Kural, kâr hedefini yüzde 10 ile 15 arası, stopu 30 haftalık ortalamanın altı sayar.'],
+      { '30 haftalık ortalama': o[i], '%10 hedefi': m[i].k * 1.1, '%15 hedefi': m[i].k * 1.15 });
   },
 };
 
@@ -76,7 +76,7 @@ export const hisse889: Tarayici = {
     if (g < 0) return null;
     return eslesme(s, 'hisse-8-89', '4h', 'al', 100,
       ['4 saatlik grafikte 8 periyotluk üssel ortalama, 89 periyotluk ortalamayı yukarı kesti.', 'Endeks Nabzı 8/20 pozitif, ön şart sağlanıyor.', 'Bu sistemde başarı ölçüsü yüzde 3 kârdır.'],
-      { '8 periyotluk ortalama': e8[m.length - 1], '89 periyotluk ortalama': e89[m.length - 1], 'Yüzde 3 hedefi': m[m.length - 1].k * 1.03 });
+      { '8 periyotluk ortalama': e8[m.length - 1], '89 periyotluk ortalama': e89[m.length - 1], '%3 hedefi': m[m.length - 1].k * 1.03 });
   },
 };
 
@@ -114,7 +114,7 @@ export const dugum: Tarayici = {
     // NaN karşılaştırması false döner ve süzgeçten geçerdi: sonlu değilse eşleşme yok.
     if (!Number.isFinite(oran) || oran > 0.015) return null;
     return eslesme(s, 'dugum', '1d', 'izle', 100,
-      [`5, 8, 13 ve 21 periyotluk üssel ortalamalar fiyatın yüzde ${(oran * 100).toFixed(2).replace('.', ',')}${iyelikEki(Math.round((oran * 100 * 100) % 100) || Math.round(oran * 100))} içinde düğümlendi.`, 'Kırılım yakın. Yönü hacim gösterecek.'],
+      [`5, 8, 13 ve 21 periyotluk üssel ortalamalar fiyatın yüzde ${(oran * 100).toFixed(2).replace('.', ',')}${iyelikEki(Math.round((oran * 100 * 100) % 100) || Math.round(oran * 100))} içinde düğümlendi.`, 'Ortalamalar sıkıştı. Kural, kırılımın yönünü hacimle okur.'],
       { '5 günlük ortalama': d[0], '21 günlük ortalama': d[3] });
   },
 };
@@ -236,9 +236,9 @@ export const sikisma200: Tarayici = {
       [
         `Fiyat ${i - dokundu} gün önce 200 günlük ortalamaya (${f2(e200[dokundu])}) dokundu ve 8 ile 200 günlük ortalamalar arasında sıkıştı.`,
         `${gecis} gün önce 8 günlük ortalamayı yukarı geçti. Geçiş sonrası tepe ${f2(tepe)}.`,
-        dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' bugün geçildi, yükseliş şartı sağlandı.' : ' bekleniyor.'}` : 'Geçişten sonraki ilk düşük bekleniyor.',
+        dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' bugün geçildi, yükseliş şartı sağlandı.' : ' henüz geçilmedi.'}` : 'Geçişten sonra henüz düşük oluşmadı.',
       ],
-      { '200 günlük ortalama': e200[i], '8 periyotluk ortalama': e8[i], 'Yüzde 61,8 seviyesi': seviye618, Tepe: tepe });
+      { '200 günlük ortalama': e200[i], '8 periyotluk ortalama': e8[i], '%61,8 seviyesi': seviye618, Tepe: tepe });
   },
 };
 

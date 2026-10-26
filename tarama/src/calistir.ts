@@ -1,7 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Eslesme, GecmisDosyasi, Gosterge, GrafikVerisi, HedefDosyasi, Portfoy, TaramaSonucu } from './tipler';
+import type { Eslesme, GecmisDosyasi, Gosterge, GrafikVerisi, HedefDosyasi, HedefUlasan, Portfoy, TaramaSonucu } from './tipler';
 import { portfoyuIlerlet } from './portfoy';
 import { hedefeUlasanlar, sicilIlerlet } from './sicil';
 import { gecmisIlerlet } from './gecmis';
@@ -15,7 +15,7 @@ import { enAzMum, TARAYICILAR } from './stratejiler';
 import { ABD, BIST, HISSE_BILGI } from './veri/evren';
 import { serileriGetir } from './veri/getir';
 import { hataTuru } from './veri/yahoo';
-import { haftaSonuMu } from './bildirim-metin';
+import { haftaSonuMu, kuyrukIlerlet, sabahIlkKosuMu, type BekleyenBildirim } from './bildirim-metin';
 
 /**
  * TARAMA ÇALIŞTIRICISI — GitHub Actions'ta günde birkaç kez koşar, sonucu
@@ -39,6 +39,8 @@ export const HATA_ESIGI = 0.2;
 
 const y2 = (n: number) => Math.round(n * 100) / 100;
 const y3 = (n: number) => Math.round(n * 1000) / 1000;
+/** Fiyat yuvarlama: float32 artığı (312.4999847) portföye ve sicile taşınmasın; 1'in altında 4 ondalık. */
+export const fiyatYuvarla = (n: number) => (Math.abs(n) < 1 ? Math.round(n * 10000) / 10000 : y2(n));
 
 /** Son mumun gösterge değerleri; tam seriden. Yetersiz veride (yeni halka arz) null. */
 export function gostergeler(kapanis: number[]): Gosterge | null {
@@ -53,6 +55,28 @@ export function gostergeler(kapanis: number[]): Gosterge | null {
   const e50 = ema(kapanis, 50)[son];
   if (![r, macd[macd.length - 1], sinyal, e20, e50].every(Number.isFinite)) return null;
   return { rsi: Math.round(r * 10) / 10, macd: y3(macd[macd.length - 1]), sinyal: y3(sinyal), ema20: y2(e20), ema50: y2(e50) };
+}
+
+/** "BIST:CITAS:kisa" → "BIST:CITAS". */
+const hataliHisse = (h: string) => h.split(':').slice(0, 2).join(':');
+
+/**
+ * Bir önceki yayımlanmış sonuca göre YENİ eşleşmeler. Önceki koşuda veri hatası (kisa/yok/ag/hiz)
+ * yüzünden taranamamış hisse bu koşuda geri gelince eşleşmeleri "yeni" sayılmaz: hisse dün de
+ * uyuyordu, yalnız verisi inmemişti (hayalet bildirim). Önceki dosya yoksa hepsi yeni.
+ */
+export function yeniEslesmeler(onceki: Pick<TaramaSonucu, 'eslesmeler' | 'taranan'> | null, simdiki: Eslesme[]): Eslesme[] {
+  if (!onceki) return simdiki;
+  const anahtar = (e: Eslesme) => `${e.piyasa}:${e.sembol}:${e.taramaId}:${e.yon}`;
+  const eski = new Set((onceki.eslesmeler ?? []).map(anahtar));
+  const dunHatali = new Set((onceki.taranan?.hatali ?? []).map(hataliHisse));
+  return simdiki.filter((e) => !eski.has(anahtar(e)) && !dunHatali.has(`${e.piyasa}:${e.sembol}`));
+}
+
+/** Son günlük mumun İstanbul tarihi (YYYY-MM-DD); mum yoksa undefined. */
+export function veriTarihiYaz(sonMumT: number): string | undefined {
+  if (!Number.isFinite(sonMumT) || sonMumT <= 0) return undefined;
+  return new Date((sonMumT + 3 * 3600) * 1000).toISOString().slice(0, 10);
 }
 
 async function main() {
@@ -75,6 +99,8 @@ async function main() {
   const grafik: GrafikVerisi = { surum: 1, uretildi: Math.floor(Date.now() / 1000), seriler: {} };
   let bitti = 0;
   let kisaGecmis = 0;
+  /** En son günlük mumun zamanı (veriTarihi). */
+  let sonMumT = 0;
 
   // Basit eşzamanlılık: N işçi, kuyruktan çeker.
   let sira = 0;
@@ -84,7 +110,8 @@ async function main() {
       try {
         const seriler = await serileriGetir(is.sembol, is.piyasa);
         const mumSayisi = seriler['1d'].length;
-        fiyatlar.set(`${is.piyasa}:${is.sembol}`, seriler['1d'][mumSayisi - 1].k);
+        fiyatlar.set(`${is.piyasa}:${is.sembol}`, fiyatYuvarla(seriler['1d'][mumSayisi - 1].k));
+        sonMumT = Math.max(sonMumT, seriler['1d'][mumSayisi - 1].t);
         {
           const g = seriler['1d'].slice(-60);
           const bilgi = HISSE_BILGI[`${is.piyasa}:${is.sembol}`];
@@ -144,23 +171,27 @@ async function main() {
     sayac,
     taranan: { BIST: isler.filter((x) => x.piyasa === 'BIST').length, ABD: isler.filter((x) => x.piyasa === 'ABD').length, hatali },
   };
+  const veriTarihi = veriTarihiYaz(sonMumT);
+  if (veriTarihi) sonuc.veriTarihi = veriTarihi;
 
   mkdirSync(CIKTI, { recursive: true });
   // Bir önceki sonuçla fark: bildirim için "yeni" eşleşmeler. Portföy durumu da oradan okunur.
   const oncekiYol = join(CIKTI, 'sonuc.json');
   let yeni: Eslesme[] = sonuc.eslesmeler;
   let oncekiPortfoy: Portfoy | null = null;
+  let oncekiUretildi: number | null = null;
   if (existsSync(oncekiYol)) {
     try {
       const onceki = JSON.parse(readFileSync(oncekiYol, 'utf8')) as TaramaSonucu;
-      const anahtar = (e: Eslesme) => `${e.piyasa}:${e.sembol}:${e.taramaId}:${e.yon}`;
-      const eski = new Set(onceki.eslesmeler.map(anahtar));
-      yeni = sonuc.eslesmeler.filter((e) => !eski.has(anahtar(e)));
+      yeni = yeniEslesmeler(onceki, sonuc.eslesmeler);
       oncekiPortfoy = onceki.portfoy ?? null;
+      oncekiUretildi = typeof onceki.uretildi === 'number' ? onceki.uretildi : null;
     } catch {
       /* bozuk eski dosya: hepsi yeni sayılır */
     }
   }
+  const tamKosu = sinir === Infinity && !tekPiyasa;
+  let ulasanlar: HedefUlasan[] = [];
   // Deneme taramasında (SINIR) portföy YAZILMAZ: yarım evrenle seçim yapılıp yayına gitmesin.
   if (sinir === Infinity && !tekPiyasa) {
     sonuc.portfoy = portfoyuIlerlet(oncekiPortfoy, sonuc.eslesmeler, fiyatlar, sonuc.uretildi);
@@ -193,21 +224,42 @@ async function main() {
       const yeniSicil = sicilIlerlet(eski, sonuc.eslesmeler, fiyatlar, sonuc.uretildi);
       writeFileSync(sicilYol, JSON.stringify(yeniSicil));
       // Hedef bildirimi: bu koşuda hedefe ulaşan kayıtlar (takipteki hisse için konu bazlı mesaj).
-      const hedef: HedefDosyasi = { uretildi: sonuc.uretildi, ulasanlar: hedefeUlasanlar(yeniSicil, sonuc.uretildi, fiyatlar) };
-      writeFileSync(join(CIKTI, 'hedef.json'), JSON.stringify(hedef));
-      console.log(`Sicil: ${yeniSicil.acik.length} açık, ${yeniSicil.kapali.length} kapanmış kayıt; bu koşuda hedefe ulaşan ${hedef.ulasanlar.length}.`);
+      ulasanlar = hedefeUlasanlar(yeniSicil, sonuc.uretildi, fiyatlar);
+      console.log(`Sicil: ${yeniSicil.acik.length} açık, ${yeniSicil.kapali.length} kapanmış kayıt; bu koşuda hedefe ulaşan ${ulasanlar.length}.`);
     } catch (hata) {
       console.error('Sicil yazılamadı (tarama devam ediyor):', (hata as Error).message);
     }
   }
+  // Sessiz saat (22:00-08:00 TR): bu koşunun bildirimleri bekleyen.json'a birikir, sabahki ilk koşuda gider.
+  // Kuyruk yalnız tam koşuda ilerler; deneme taraması (SINIR, PIYASA) kuyruğa dokunmaz.
+  const bekleyenYol = join(CIKTI, 'bekleyen.json');
+  let bekleyen: BekleyenBildirim | null = null;
+  if (tamKosu && existsSync(bekleyenYol)) {
+    try { bekleyen = JSON.parse(readFileSync(bekleyenYol, 'utf8')) as BekleyenBildirim; } catch { console.error('bekleyen.json bozuk; kuyruk boş sayıldı.'); }
+  }
+  const kuyruk = kuyrukIlerlet(bekleyen, yeni, ulasanlar, sonuc.eslesmeler, sonuc.uretildi);
+  if (tamKosu) {
+    if (kuyruk.bekleyen) writeFileSync(bekleyenYol, JSON.stringify(kuyruk.bekleyen));
+    else if (existsSync(bekleyenYol)) unlinkSync(bekleyenYol);
+  }
+  if (kuyruk.sessiz) console.log(`Sessiz saat: ${yeni.length} yeni eşleşme ve ${ulasanlar.length} hedef bildirimi sabaha ertelendi (kuyrukta ${kuyruk.bekleyen?.eslesmeler.length ?? 0} + ${kuyruk.bekleyen?.ulasanlar.length ?? 0}).`);
+  else if (bekleyen) console.log(`Gece kuyruğundan ${kuyruk.eslesmeler.length - yeni.length} eşleşme ve ${kuyruk.ulasanlar.length - ulasanlar.length} hedef bu koşuyla gidiyor.`);
+  yeni = kuyruk.sessiz ? yeni : kuyruk.eslesmeler;
+  if (tamKosu) {
+    const hedef: HedefDosyasi = { uretildi: sonuc.uretildi, ulasanlar: kuyruk.sessiz ? ulasanlar : kuyruk.ulasanlar };
+    writeFileSync(join(CIKTI, 'hedef.json'), JSON.stringify(hedef));
+  }
+  // Brifing iş akışında bu koşunun sonunda koşar; yalnız günün ilk sabah koşusunda gönderir.
+  const sabahIlk = sabahIlkKosuMu(oncekiUretildi, sonuc.uretildi);
   writeFileSync(oncekiYol, JSON.stringify(sonuc));
   // Hafta sonu koşusunda veri değişmez, fark boş çıkar: cuma akşamının "yeni"leri silinmesin
   // (pazartesi sabah brifingi "yeni şart oluşmadı" diyordu). bildirim.ts eski yeni.json'u yeniden göndermez.
   const yeniYol = join(CIKTI, 'yeni.json');
   if (yeni.length === 0 && haftaSonuMu(sonuc.uretildi) && existsSync(yeniYol)) console.log('Hafta sonu ve yeni eşleşme yok: yeni.json korundu.');
-  else writeFileSync(yeniYol, JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni }));
+  else writeFileSync(yeniYol, JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni, sessiz: kuyruk.sessiz, sabahIlk }));
   writeFileSync(join(CIKTI, 'grafik.json'), JSON.stringify(grafik));
-  writeFileSync(join(CIKTI, 'ozet.json'), JSON.stringify({ uretildi: sonuc.uretildi, ortam, sayac, taranan: sonuc.taranan }));
+  writeFileSync(join(CIKTI, 'ozet.json'), JSON.stringify({ uretildi: sonuc.uretildi, ...(sonuc.veriTarihi ? { veriTarihi: sonuc.veriTarihi } : {}), ortam, sayac, taranan: sonuc.taranan }));
+  console.log(`Veri tarihi ${sonuc.veriTarihi ?? '?'}; ${sabahIlk ? 'günün ilk sabah koşusu (brifing gider)' : 'brifing koşusu değil'}.`);
   console.log(`Bitti: ${eslesmeler.length} eşleşme, ${yeni.length} yeni, ${hatali.length} hatalı sembol, ${kisaGecmis} kısa geçmişli hisse.`);
   if (hatali.length) console.log(`Hatalı: ${hatali.join(', ')}`);
   console.table(sayac);
