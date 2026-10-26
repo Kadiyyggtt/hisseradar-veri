@@ -40,7 +40,7 @@ export const haftalikCiftOnay: Tarayici = {
     const fishSon = [i, i - 1].find(fishAl);
     if (dmiSon === undefined || fishSon === undefined) return null;
     return eslesme(s, 'haftalik-cift-onay', '1w', 'al', 100,
-      ['Haftalık grafikte DMI (14) göstergesinde +DI çizgisi -DI çizgisini yukarı kesti. Bu öncü sinyaldir.', 'Haftalık Fisher (14) göstergesi tetik çizgisini yukarı kesti. Bu onay sinyalidir.', 'Kural, %5 hedefini ilk anlamlı hedef olarak tarif eder. Heikin Ashi teyidiyle şart güçlenir.'],
+      ['Haftalık grafikte DMI (14) göstergesinde +DI çizgisi -DI çizgisini yukarı kesti. Bu öncü sinyaldir.', 'Haftalık Fisher (14) göstergesi tetik çizgisini yukarı kesti. Bu onay sinyalidir.', 'Kural, yüzde 5 hedefini ilk anlamlı hedef olarak tarif eder. Heikin Ashi teyidiyle şart güçlenir.'],
       { '%5 hedefi': m[i].k * 1.05 });
   },
 };
