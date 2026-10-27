@@ -12,6 +12,10 @@ taramalara göre tarar ve sonucu `docs/tarama/` altına yazar (GitHub Pages yay�
 - Sessiz saat: Türkiye saatiyle 22:00-08:00 arası hiçbir bildirim gönderilmez. Gece ABD taramasının yeni
   eşleşmeleri ve hedef bildirimleri `bekleyen.json` kuyruğuna girer, sabahki ilk koşuda gönderilir.
 - Firebase gizli değeri (`FCM_SERVIS_HESABI`) yoksa ya da bildirim ertelendiyse durum her koşunun iş özetinde yazar.
+- Geriye giden veri koruması: bir hissenin son mumu önceki koşunun `grafik.json`'undaki son mumdan ESKİYSE o hisse
+  bu koşuda `taranan.hatali` listesine `:eski` ile girer ve atlanır (kaynak gece saatlerinde günlük mumları yeniden
+  işlerken son günü geçici olarak düşürebiliyor). Eski hisse oranı yüzde 20'yi aşarsa hiçbir dosya yazılmaz, koşu
+  düşer ve sonraki koşu yeniden dener; böylece dünkü durum "yeni eşleşme" ve sahte karne kapanışı üretmez.
 
 | Dosya | İçerik |
 |---|---|

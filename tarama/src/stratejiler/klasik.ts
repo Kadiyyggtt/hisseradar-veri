@@ -1,6 +1,6 @@
 import type { Tarayici } from '../tipler';
 import { pivotlar, hacimOrt } from '../gostergeler/pivot';
-import { eslesme, f2 } from './ortak';
+import { eslesme, f2, gunOnce } from './ortak';
 
 /** 0.3 — Yükselen dipler: son üç pivot dip ardışık yükseliyor (filtre/rozet). */
 export const yukselenDipler: Tarayici = {
@@ -47,7 +47,7 @@ export const kuyrukluW: Tarayici = {
       const ortaUstKapanis = m[i].k > tepe && ikinciDipI < i;
       return eslesme(s, 'kuyruklu-w', '1d', ortaUstKapanis ? 'al' : 'izle', 100,
         [
-          `${i - j} gün önce uzun alt kuyruklu bir dip mumu oluştu. Kutu ${f2(kutuAlt)} ile ${f2(kutuUst)} arasında.`,
+          `${gunOnce(i - j, true)} uzun alt kuyruklu bir dip mumu oluştu. Kutu ${f2(kutuAlt)} ile ${f2(kutuUst)} arasında.`,
           `Tepki tepesi ${f2(tepe)}. Fiyat kutuya geri döndü ama kapanış kutunun altına inmedi.`,
           ortaUstKapanis ? `Bugünkü kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde. Şartların tamamı sağlandı.` : `W'nin orta tepesi olan ${f2(tepe)} seviyesinin üstünde kapanış henüz yok; kural bu kapanışı şart sayar.`,
         ],

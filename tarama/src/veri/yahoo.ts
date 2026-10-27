@@ -16,7 +16,8 @@ export const ZAMAN_ASIMI_MS = 15000;
  *   ag   → ağ hatası, zaman aşımı, 5xx, bozuk JSON
  *   kisa → veri var ama tarama için yetmeyecek kadar kısa
  */
-export type VeriHataTuru = 'yok' | 'hiz' | 'ag' | 'kisa';
+/** eski: kaynak bu koşuda önceki koşudan daha ESKİ bir son mum döndürdü (gece yeniden işleme); hisse bu koşuda atlanır. */
+export type VeriHataTuru = 'yok' | 'hiz' | 'ag' | 'kisa' | 'eski';
 
 export class VeriHatasi extends Error {
   constructor(readonly tur: VeriHataTuru, mesaj: string) {

@@ -14,7 +14,7 @@ import { ortamiOlc } from './ortam';
 import { enAzMum, TARAYICILAR } from './stratejiler';
 import { ABD, BIST, HISSE_BILGI } from './veri/evren';
 import { serileriGetir } from './veri/getir';
-import { hataTuru } from './veri/yahoo';
+import { hataTuru, VeriHatasi } from './veri/yahoo';
 import { haftaSonuMu, kuyrukIlerlet, sabahIlkKosuMu, type BekleyenBildirim } from './bildirim-metin';
 
 /**
@@ -73,6 +73,25 @@ export function yeniEslesmeler(onceki: Pick<TaramaSonucu, 'eslesmeler' | 'tarana
   return simdiki.filter((e) => !eski.has(anahtar(e)) && !dunHatali.has(`${e.piyasa}:${e.sembol}`));
 }
 
+/**
+ * Önceki koşunun yayımladığı grafik.json'dan sembol başına son mum zamanı. Kaynak gece saatlerinde
+ * günlük mumları yeniden işlerken son günü geçici olarak DÜŞÜREBİLİYOR (27 Ekim 2026 00:56 UTC:
+ * 445 serinin 444'ü cuma kapanışına döndü; 564 "yeni" eşleşme ve 7 sahte karne kapanışı üredi).
+ */
+export function sonMumlariOku(grafik: Pick<GrafikVerisi, 'seriler'> | null): Map<string, number> {
+  const m = new Map<string, number>();
+  if (!grafik || typeof grafik !== 'object' || !grafik.seriler) return m;
+  for (const [anahtar, seri] of Object.entries(grafik.seriler)) {
+    if (seri && Number.isFinite(seri.t1) && seri.t1 > 0) m.set(anahtar, seri.t1);
+  }
+  return m;
+}
+
+/** Bu koşunun son mumu önceki koşunun son mumundan ESKİ mi? Önceki bilinmiyorsa ya da eşitse (hafta sonu, tatil) hayır. */
+export function veriGeriMi(oncekiT1: number | undefined, simdikiT1: number): boolean {
+  return oncekiT1 !== undefined && Number.isFinite(oncekiT1) && Number.isFinite(simdikiT1) && simdikiT1 < oncekiT1;
+}
+
 /** Son günlük mumun İstanbul tarihi (YYYY-MM-DD); mum yoksa undefined. */
 export function veriTarihiYaz(sonMumT: number): string | undefined {
   if (!Number.isFinite(sonMumT) || sonMumT <= 0) return undefined;
@@ -90,6 +109,13 @@ async function main() {
   const isler: { sembol: string; piyasa: 'BIST' | 'ABD' }[] = [];
   if (tekPiyasa !== 'ABD') for (const s of BIST.slice(0, sinir)) isler.push({ sembol: s, piyasa: 'BIST' });
   if (tekPiyasa !== 'BIST') for (const s of ABD.slice(0, sinir)) isler.push({ sembol: s, piyasa: 'ABD' });
+
+  // Geriye giden veri koruması: önceki koşunun son mumları (yoksa boş harita, koruma devre dışı).
+  const oncekiGrafikYol = join(CIKTI, 'grafik.json');
+  let oncekiSonMum = new Map<string, number>();
+  if (existsSync(oncekiGrafikYol)) {
+    try { oncekiSonMum = sonMumlariOku(JSON.parse(readFileSync(oncekiGrafikYol, 'utf8')) as GrafikVerisi); } catch { console.error('Önceki grafik.json okunamadı; geriye giden veri koruması bu koşuda devre dışı.'); }
+  }
 
   const eslesmeler: Eslesme[] = [];
   const hatali: string[] = [];
@@ -110,6 +136,11 @@ async function main() {
       try {
         const seriler = await serileriGetir(is.sembol, is.piyasa);
         const mumSayisi = seriler['1d'].length;
+        {
+          const sonT = seriler['1d'][mumSayisi - 1].t;
+          const oncekiT = oncekiSonMum.get(`${is.piyasa}:${is.sembol}`);
+          if (veriGeriMi(oncekiT, sonT)) throw new VeriHatasi('eski', `son mum ${veriTarihiYaz(sonT)}, önceki koşuda ${veriTarihiYaz(oncekiT!)}: kaynak eski veri döndürdü`);
+        }
         fiyatlar.set(`${is.piyasa}:${is.sembol}`, fiyatYuvarla(seriler['1d'][mumSayisi - 1].k));
         sonMumT = Math.max(sonMumT, seriler['1d'][mumSayisi - 1].t);
         {
@@ -160,7 +191,12 @@ async function main() {
     const turler: Record<string, number> = {};
     for (const h of hatali) { const t = h.split(':')[2] ?? '?'; turler[t] = (turler[t] ?? 0) + 1; }
     console.error(`Hatalı sembol oranı yüzde ${Math.round(hataOrani * 100)} (${hatali.length}/${isler.length}; ${JSON.stringify(turler)}): sonuç YAYIMLANMADI.`);
+    if (turler.eski) console.error(`Kaynak ${turler.eski} hissede önceki koşudan eski bir son mum döndürdü (gece yeniden işleme); bu koşu atlandı, sonraki koşu yeniden dener.`);
     process.exit(1);
+  }
+  {
+    const eski = hatali.filter((h) => h.endsWith(':eski'));
+    if (eski.length) console.log(`Geriye giden veri: ${eski.length} hisse bu koşuda atlandı (${eski.map(hataliHisse).join(', ')}).`);
   }
 
   const sonuc: TaramaSonucu = {

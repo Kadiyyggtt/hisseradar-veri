@@ -12,7 +12,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { kuyrukIlerlet, sabahIlkKosuMu, sessizSaatMi } from './bildirim-metin';
-import { fiyatYuvarla, veriTarihiYaz, yeniEslesmeler } from './calistir';
+import { fiyatYuvarla, sonMumlariOku, veriGeriMi, veriTarihiYaz, yeniEslesmeler } from './calistir';
+import { gunOnce } from './stratejiler/ortak';
 import { gonder, gonderimSerbestMi, ozetYaz } from './fcm';
 import type { Eslesme, HedefUlasan } from './tipler';
 import { ABD_HISSELER, adDuzelt, AD_EN_COK, BIST_HISSELER, BIST_KAYNAK, HISSE_BILGI, TURKCE_AD } from './veri/evren';
@@ -165,6 +166,26 @@ async function main() {
     kontrol('ABD mumu 23 Eki 13:30 UTC → 2026-10-23', veriTarihiYaz(Date.UTC(2026, 9, 23, 13, 30) / 1000) === '2026-10-23');
     kontrol('22:00 UTC mumu İstanbul\'da ertesi gün → 2026-10-24', veriTarihiYaz(Date.UTC(2026, 9, 23, 22, 0) / 1000) === '2026-10-24');
     kontrol('mum yoksa tarih yok', veriTarihiYaz(0) === undefined);
+  }
+
+  // 4a. GERİYE GİDEN VERİ: kaynak önceki koşudan eski son mum döndürürse hisse "eski" sayılır (27 Ekim 2026 gecesi).
+  {
+    const cuma = Date.UTC(2026, 9, 23, 6, 30) / 1000;
+    const pazartesi = Date.UTC(2026, 9, 26, 6, 30) / 1000;
+    kontrol('son mum pazartesiden cumaya dönerse geri', veriGeriMi(pazartesi, cuma));
+    kontrol('son mum aynıysa (hafta sonu, tatil) geri değil', !veriGeriMi(pazartesi, pazartesi));
+    kontrol('son mum ilerlediyse geri değil', !veriGeriMi(cuma, pazartesi));
+    kontrol('önceki bilinmiyorsa geri değil', !veriGeriMi(undefined, cuma));
+    kontrol('önceki NaN ise geri değil', !veriGeriMi(Number.NaN, cuma));
+    const harita = sonMumlariOku({ seriler: { 'BIST:THYAO': { t0: 1, t1: pazartesi, k: [], h: [] }, 'ABD:AAPL': { t0: 1, t1: 0, k: [], h: [] } } } as never);
+    kontrol('grafik.json\'dan son mumlar okunur, t1=0 atlanır', harita.get('BIST:THYAO') === pazartesi && !harita.has('ABD:AAPL') && sonMumlariOku(null).size === 0);
+    const kaynak = readFileSync(join(BURASI, 'calistir.ts'), 'utf8');
+    kontrol('calistir geri giden hisseyi VeriHatasi("eski") ile hatalı sayar', /veriGeriMi\(oncekiT, sonT\)\) throw new VeriHatasi\('eski'/.test(kaynak));
+    kontrol('calistir önceki grafik.json\'u koruma için okur', /sonMumlariOku\(JSON\.parse\(readFileSync\(oncekiGrafikYol/.test(kaynak));
+    kontrol('yahoo.ts hata türleri "eski"yi içerir', /'kisa' \| 'eski'/.test(readFileSync(join(BURASI, 'veri', 'yahoo.ts'), 'utf8')));
+    kontrol('"0 gün önce" yazılmaz: gunOnce(0) → bugün', gunOnce(0) === 'bugün' && gunOnce(0, true) === 'Bugün' && gunOnce(3) === '3 gün önce');
+    const stratejiler = ['ortalamalar.ts', 'klasik.ts'].map((d) => readFileSync(join(BURASI, 'stratejiler', d), 'utf8')).join('\n');
+    kontrol('stratejilerde çıplak "${x} gün önce" kalıbı kalmadı', !/\$\{(?!gunOnce)[^}]*\} gün önce/.test(stratejiler));
   }
 
   // 4b. FİYAT YUVARLAMA: float32 artığı portföye/sicile girmez.

@@ -120,6 +120,12 @@ export function hedefleriSuz(sev: Record<string, number>, yon: Yon, fiyat: numbe
 
 export const kapanislar = (m: { k: number }[]) => m.map((x) => x.k);
 
+/** "3 gün önce" / "bugün"; cümle başında büyük harfle. "0 gün önce" yazılmaz. */
+export function gunOnce(n: number, cumleBasi = false): string {
+  if (n <= 0) return cumleBasi ? 'Bugün' : 'bugün';
+  return `${n} gün önce`;
+}
+
 export function f2(n: number): string {
   return n.toLocaleString('tr-TR', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 }

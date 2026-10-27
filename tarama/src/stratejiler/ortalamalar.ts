@@ -1,7 +1,7 @@
 import type { Tarayici } from '../tipler';
 import { asagiKesti, ema, sma, sonYukariKesisme, yukariKesti } from '../gostergeler/ortalama';
 import { hacimOrt } from '../gostergeler/pivot';
-import { eslesme, f2, iyelikEki, kapanislar } from './ortak';
+import { eslesme, f2, iyelikEki, kapanislar, gunOnce } from './ortak';
 
 /** 3.1 — 200 günlük EMA'yı son 3 mumda kesenler. */
 export const ema200: Tarayici = {
@@ -192,7 +192,7 @@ export const fibMerdiveni: Tarayici = {
     return eslesme(s, 'fib-merdiveni', '1d', gecisBugun ? 'al' : 'izle', 100,
       [
         '55, 89, 144 ve 233 günlük ortalamalar yukarıdan aşağıya sıralı, dizilim bozulmamış.',
-        `Fiyat ${i - daldi} gün önce 144 ile 233 günlük ortalamalar arasındaki bölgeye indi.`,
+        `Fiyat ${gunOnce(i - daldi)} 144 ile 233 günlük ortalamalar arasındaki bölgeye indi.`,
         gecisBugun ? 'En üstteki ortalama olan 55 günlük bugün yukarı geçildi. Yükseliş şartı sağlandı.' : 'Fiyat henüz bölgede. 55 günlük ortalama boyun çizgisidir, geçilince yükseliş şartı sağlanır.',
         ustte ? '' : '',
       ].filter(Boolean),
@@ -234,8 +234,8 @@ export const sikisma200: Tarayici = {
     if (!dusukYapti && gecis > 10) return null;
     return eslesme(s, '200-sikismasi', '1d', alSinyali ? 'al' : 'izle', 100,
       [
-        `Fiyat ${i - dokundu} gün önce 200 günlük ortalamaya (${f2(e200[dokundu])}) dokundu ve 8 ile 200 günlük ortalamalar arasında sıkıştı.`,
-        `${gecis} gün önce 8 günlük ortalamayı yukarı geçti. Geçiş sonrası tepe ${f2(tepe)}.`,
+        `Fiyat ${gunOnce(i - dokundu)} 200 günlük ortalamaya (${f2(e200[dokundu])}) dokundu ve 8 ile 200 günlük ortalamalar arasında sıkıştı.`,
+        `${gunOnce(gecis, true)} 8 günlük ortalamayı yukarı geçti. Geçiş sonrası tepe ${f2(tepe)}.`,
         dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' bugün geçildi, yükseliş şartı sağlandı.' : ' henüz geçilmedi.'}` : 'Geçişten sonra henüz düşük oluşmadı.',
       ],
       { '200 günlük ortalama': e200[i], '8 periyotluk ortalama': e8[i], '%61,8 seviyesi': seviye618, Tepe: tepe });
