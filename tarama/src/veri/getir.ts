@@ -36,7 +36,7 @@ export async function serileriGetir(sembol: string, piyasa: 'BIST' | 'ABD'): Pro
     throw new VeriHatasi(gunluk.length ? 'kisa' : 'yok', `${sembol}: yeterli günlük veri yok (${gunluk.length})`);
   }
   await bekle(150); // kaynağa nazik ol
-  const saatlik = await yahooMumlar(ys, '1h', '730d').catch((e: unknown) => {
+  const saatlik = await saatlikGetir(ys).catch((e: unknown) => {
     // Saatlik yoksa günlük tarayıcılar yine koşar; yalnız 1h/4h tarayıcıları susar.
     console.warn(`  ${sembol}: saatlik veri alınamadı (${hataTuru(e)})`);
     return [] as Mum[];
@@ -50,4 +50,19 @@ export async function serileriGetir(sembol: string, piyasa: 'BIST' | 'ABD'): Pro
     '1w': haftalik(gunluk),
     '1mo': aylik(gunluk),
   };
+}
+
+/**
+ * Saatlik mumlar. '730d' en uzun geçmişi verir (THYAO: 2023'ten, ~6.500 mum), ama iki yıldan genç
+ * hissede (halka arz 2024 sonrası: EFOR, KTLEV, ODINE… BIST'in yüzde 13'ü) Yahoo HTTP 422 döner.
+ * O zaman '2y' istenir; 29 Ekim 2026'da bu 46 hissenin hepsinde 200 döndü. Eskiden 422 "ağ"
+ * sayılıp susuluyordu ve bu hisseler saatlik ve 4 saatlik taramaya hiç girmiyordu.
+ */
+export async function saatlikGetir(ys: string, al: (s: string, aralik: '1h', uzunluk: string) => Promise<Mum[]> = yahooMumlar): Promise<Mum[]> {
+  try {
+    return await al(ys, '1h', '730d');
+  } catch (e) {
+    if (hataTuru(e) !== 'aralik') throw e;
+    return al(ys, '1h', '2y');
+  }
 }

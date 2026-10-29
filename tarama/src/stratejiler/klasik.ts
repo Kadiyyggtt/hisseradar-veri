@@ -49,7 +49,7 @@ export const kuyrukluW: Tarayici = {
         [
           `${gunOnce(i - j, true)} uzun alt kuyruklu bir dip mumu oluştu. Kutu ${f2(kutuAlt)} ile ${f2(kutuUst)} arasında.`,
           `Tepki tepesi ${f2(tepe)}. Fiyat kutuya geri döndü ama kapanış kutunun altına inmedi.`,
-          ortaUstKapanis ? `Bugünkü kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde. Şartların tamamı sağlandı.` : `W'nin orta tepesi olan ${f2(tepe)} seviyesinin üstünde kapanış henüz yok; kural bu kapanışı şart sayar.`,
+          ortaUstKapanis ? `Son kapanış W'nin orta tepesinin (${f2(tepe)}) üstünde. Şartların tamamı sağlandı.` : `W'nin orta tepesi olan ${f2(tepe)} seviyesinin üstünde kapanış henüz yok; kural bu kapanışı şart sayar.`,
         ],
         { 'Kutunun altı': kutuAlt, 'Kutunun üstü': kutuUst, 'Orta tepe': tepe });
     }

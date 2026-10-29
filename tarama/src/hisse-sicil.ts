@@ -7,6 +7,7 @@ import { TARAYICILAR } from './stratejiler';
 import type { HisseSicilDosyasi, HisseSicili, HisseSicilKaydi, Mum, Ortam, Seriler, Tarayici } from './tipler';
 import { ABD, BIST } from './veri/evren';
 import { serileriGetir } from './veri/getir';
+import { tamamlanmisSeriler } from './veri/tamamlanmis';
 
 /**
  * HİSSE BAZLI SİCİL — `npm run hisse-sicil` (cumartesi, hisse-sicil.yml). Her hisse için
@@ -71,7 +72,8 @@ async function main() {
     while (sira < isler.length) {
       const is = isler[sira++];
       try {
-        const seriler = await serileriGetir(is.sembol, is.piyasa);
+        // Yalnız kapanmış mumlar (elle seans içinde çalıştırılırsa oluşan gün geçmişe girmesin).
+        const { seriler } = tamamlanmisSeriler(await serileriGetir(is.sembol, is.piyasa), Math.floor(Date.now() / 1000));
         hisseler[`${is.piyasa}:${is.sembol}`] = hisseSicili(is.sembol, is.piyasa, seriler['1d']);
       } catch (hata) {
         console.error(`  ${is.sembol}: ${(hata as Error).message}`);

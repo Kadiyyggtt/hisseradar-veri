@@ -14,6 +14,7 @@ import { ortamiOlc } from './ortam';
 import { enAzMum, TARAYICILAR } from './stratejiler';
 import { ABD, BIST, HISSE_BILGI } from './veri/evren';
 import { serileriGetir } from './veri/getir';
+import { tamamlanmisSeriler } from './veri/tamamlanmis';
 import { hataTuru, VeriHatasi } from './veri/yahoo';
 import { haftaSonuMu, kuyrukIlerlet, sabahIlkKosuMu, type BekleyenBildirim } from './bildirim-metin';
 
@@ -125,8 +126,10 @@ async function main() {
   const grafik: GrafikVerisi = { surum: 1, uretildi: Math.floor(Date.now() / 1000), seriler: {} };
   let bitti = 0;
   let kisaGecmis = 0;
-  /** En son günlük mumun zamanı (veriTarihi). */
-  let sonMumT = 0;
+  /** Piyasa başına en son KAPANMIŞ günlük mumun zamanı (kapanis, veriTarihi). */
+  const sonKapanisT: Record<'BIST' | 'ABD', number> = { BIST: 0, ABD: 0 };
+  /** Tamamlanmış mum kuralının "şimdi"si: koşu boyunca sabit, bütün hisseler aynı ana göre kesilir. */
+  const simdi = Math.floor(Date.now() / 1000);
 
   // Basit eşzamanlılık: N işçi, kuyruktan çeker.
   let sira = 0;
@@ -134,17 +137,20 @@ async function main() {
     while (sira < isler.length) {
       const is = isler[sira++];
       try {
-        const seriler = await serileriGetir(is.sembol, is.piyasa);
-        const mumSayisi = seriler['1d'].length;
+        const ham = await serileriGetir(is.sembol, is.piyasa);
         {
-          const sonT = seriler['1d'][mumSayisi - 1].t;
+          const sonT = ham['1d'][ham['1d'].length - 1].t;
           const oncekiT = oncekiSonMum.get(`${is.piyasa}:${is.sembol}`);
           if (veriGeriMi(oncekiT, sonT)) throw new VeriHatasi('eski', `son mum ${veriTarihiYaz(sonT)}, önceki koşuda ${veriTarihiYaz(oncekiT!)}: kaynak eski veri döndürdü`);
         }
+        // Tarama, göstergeler, portföy ve sicil yalnız KAPANMIŞ mumları görür; oluşan mum yalnız grafikte, işaretli.
+        const { seriler, olusuyor } = tamamlanmisSeriler(ham, simdi);
+        const mumSayisi = seriler['1d'].length;
+        if (mumSayisi === 0) throw new VeriHatasi('kisa', `${is.sembol}: kapanmış günlük mum yok`);
         fiyatlar.set(`${is.piyasa}:${is.sembol}`, fiyatYuvarla(seriler['1d'][mumSayisi - 1].k));
-        sonMumT = Math.max(sonMumT, seriler['1d'][mumSayisi - 1].t);
+        sonKapanisT[is.piyasa] = Math.max(sonKapanisT[is.piyasa], seriler['1d'][mumSayisi - 1].t);
         {
-          const g = seriler['1d'].slice(-60);
+          const g = ham['1d'].slice(-60);
           const bilgi = HISSE_BILGI[`${is.piyasa}:${is.sembol}`];
           const gost = gostergeler(seriler['1d'].map((m) => m.k));
           grafik.seriler[`${is.piyasa}:${is.sembol}`] = {
@@ -157,6 +163,8 @@ async function main() {
             d: g.map((m) => y2(m.d)),
             ...(bilgi ? { ad: bilgi.ad, sektor: bilgi.sektor } : {}),
             ...(gost ? { g: gost } : {}),
+            // Son mum seans içinde alındı: kapanış değil, gecikmeli fiyat. Uygulama "oluşuyor" diye gösterir.
+            ...(olusuyor.gun ? { olusuyor: true as const } : {}),
           };
         }
         // Kısa geçmişli hisse (yeni halka arz) grafiğe yazıldı; yalnız kısa seriyle çalışan tarayıcılar koşar.
@@ -207,7 +215,12 @@ async function main() {
     sayac,
     taranan: { BIST: isler.filter((x) => x.piyasa === 'BIST').length, ABD: isler.filter((x) => x.piyasa === 'ABD').length, hatali },
   };
-  const veriTarihi = veriTarihiYaz(sonMumT);
+  // Piyasa başına son kapanış günü: 29 Ekim (bayram) BIST'te 28 Ekim, ABD'de 28 Ekim (seans sürüyordu).
+  const kapanis: NonNullable<TaramaSonucu['kapanis']> = {};
+  for (const p of ['BIST', 'ABD'] as const) { const g = veriTarihiYaz(sonKapanisT[p]); if (g) kapanis[p] = g; }
+  if (Object.keys(kapanis).length) sonuc.kapanis = kapanis;
+  // Eski uygulama sürümleri için tek tarih: en son KAPANMIŞ gün (artık oluşan mumdan gelmez).
+  const veriTarihi = veriTarihiYaz(Math.max(sonKapanisT.BIST, sonKapanisT.ABD));
   if (veriTarihi) sonuc.veriTarihi = veriTarihi;
 
   mkdirSync(CIKTI, { recursive: true });
@@ -294,7 +307,7 @@ async function main() {
   if (yeni.length === 0 && haftaSonuMu(sonuc.uretildi) && existsSync(yeniYol)) console.log('Hafta sonu ve yeni eşleşme yok: yeni.json korundu.');
   else writeFileSync(yeniYol, JSON.stringify({ uretildi: sonuc.uretildi, eslesmeler: yeni, sessiz: kuyruk.sessiz, sabahIlk }));
   writeFileSync(join(CIKTI, 'grafik.json'), JSON.stringify(grafik));
-  writeFileSync(join(CIKTI, 'ozet.json'), JSON.stringify({ uretildi: sonuc.uretildi, ...(sonuc.veriTarihi ? { veriTarihi: sonuc.veriTarihi } : {}), ortam, sayac, taranan: sonuc.taranan }));
+  writeFileSync(join(CIKTI, 'ozet.json'), JSON.stringify({ uretildi: sonuc.uretildi, ...(sonuc.veriTarihi ? { veriTarihi: sonuc.veriTarihi } : {}), ...(sonuc.kapanis ? { kapanis: sonuc.kapanis } : {}), ortam, sayac, taranan: sonuc.taranan }));
   console.log(`Veri tarihi ${sonuc.veriTarihi ?? '?'}; ${sabahIlk ? 'günün ilk sabah koşusu (brifing gider)' : 'brifing koşusu değil'}.`);
   console.log(`Bitti: ${eslesmeler.length} eşleşme, ${yeni.length} yeni, ${hatali.length} hatalı sembol, ${kisaGecmis} kısa geçmişli hisse.`);
   if (hatali.length) console.log(`Hatalı: ${hatali.join(', ')}`);

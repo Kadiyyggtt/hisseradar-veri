@@ -1,6 +1,6 @@
 import type { Seriler, Tarayici } from '../tipler';
 import { fib, geriAlma, hacimOrt, pivotlar, yakin } from '../gostergeler/pivot';
-import { eslesme, f2, HEDEF_ESIK } from './ortak';
+import { eslesme, f2, gunOnce, HEDEF_ESIK } from './ortak';
 
 /**
  * 1-2-3 döngüsü: son onaylı dip (1) ve sonrasındaki tepe (2). Yükseliş en az
@@ -56,7 +56,7 @@ export const ucBantTesti: Tarayici = {
         const onceDegdi = m.slice(d.iki.i + 1, j).some((x) => x.d <= s382);
         if (onceDegdi) return null;
         return eslesme(s, 'uc-bant-testi', '1d', 'izle', 100,
-          [`${f2(d.iki.fiyat)} tepesinden gelen düşüş, yüzde 38,2 bandına (${f2(s382)}) ${g === 0 ? 'bugün' : g + ' gün önce'} ilk kez değdi.`, 'Kural bu dokunuşu ara düzeltme saymaz; sıradaki ölçü yüzde 61,8 maliyet bandıdır.'],
+          [`${f2(d.iki.fiyat)} tepesinden gelen düşüş, yüzde 38,2 bandına (${f2(s382)}) ${gunOnce(g)} ilk kez değdi.`, 'Kural bu dokunuşu ara düzeltme saymaz; sıradaki ölçü yüzde 61,8 maliyet bandıdır.'],
           { '%38,2 seviyesi': s382, '%50 seviyesi': fib(d.iki.fiyat, d.bir.fiyat, 0.5), 'Maliyet (%61,8)': fib(d.iki.fiyat, d.bir.fiyat, 0.618) });
       }
     }
@@ -126,7 +126,7 @@ export const yeniDongu: Tarayici = {
     return eslesme(s, 'yeni-dongu', '1d', 'al', kat >= 1.5 ? 85 : 55,
       [
         `3 noktası ${f2(uc.fiyat)} ile maliyete (${f2(maliyet)}) inmedi. Satış isteksiz.`,
-        gecti ? `${f2(satisMaliyeti)} satış maliyeti bugün geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Kural kitabında bu bölge ekleme bölgesi sayılır.`,
+        gecti ? `${f2(satisMaliyeti)} satış maliyeti son kapanışta geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Kural kitabında bu bölge ekleme bölgesi sayılır.`,
         `Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı${kat >= 1.5 ? ', iştahlı bir geçiş.' : ', zayıf bir geçiş. İkili tepe riski var.'}`,
       ],
       { 'Satış maliyeti': satisMaliyeti, 'Zirve (2 noktası)': d.iki.fiyat, 'Maliyet (%61,8)': maliyet });

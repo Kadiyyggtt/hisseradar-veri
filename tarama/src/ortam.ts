@@ -1,6 +1,7 @@
 import type { Ortam } from './tipler';
 import { ema } from './gostergeler/ortalama';
 import { dortSaatlik } from './gostergeler/periyot';
+import { kapanmisGunlerinSaatlikleri } from './veri/tamamlanmis';
 import { ENDEKSLER } from './veri/evren';
 import { yahooMumlar } from './veri/yahoo';
 
@@ -10,7 +11,8 @@ export async function ortamiOlc(): Promise<Ortam> {
   for (const [ad, sembol] of Object.entries(ENDEKSLER) as ['XU100' | 'SPX', string][]) {
     try {
       const saatlik = await yahooMumlar(sembol, '1h', '120d');
-      const d4 = dortSaatlik(saatlik);
+      // Yalnız seansı kapanmış günler: oluşan 4 saatlik mum nabzı gün içinde oynatmasın.
+      const d4 = dortSaatlik(kapanmisGunlerinSaatlikleri(ad === 'XU100' ? 'BIST' : 'ABD', saatlik, Math.floor(Date.now() / 1000)));
       const k = d4.map((m) => m.k);
       const e8 = ema(k, 8);
       const e20 = ema(k, 20);

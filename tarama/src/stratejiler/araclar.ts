@@ -20,8 +20,8 @@ export const heikinTeyit: Tarayici = {
     if (dun.teyit === bugun.teyit) return null; // zaten devam eden trend, yeni haber değil
     const yon = bugun.teyit === 'yukari' ? 'al' : 'sat';
     return eslesme(s, 'heikin', '1d', yon, 100,
-      [`Heikin Ashi grafiğinde bugün yalnızca ${bugun.teyit === 'yukari' ? 'üst kuyruğu olan yeşil' : 'alt kuyruğu olan kırmızı'} bir teyit mumu oluştu.`,
-       `Dün ${dun.teyit ? 'ters yönde bir teyit mumu' : 'iki kuyruklu, kararsız bir mum'} vardı. Yön ${bugun.teyit === 'yukari' ? 'yukarı' : 'aşağı'} döndü.`]);
+      [`Heikin Ashi grafiğinde son kapanan mum yalnızca ${bugun.teyit === 'yukari' ? 'üst kuyruğu olan yeşil' : 'alt kuyruğu olan kırmızı'} bir teyit mumu.`,
+       `Bir önceki mumda ${dun.teyit ? 'ters yönde bir teyit mumu' : 'iki kuyruklu, kararsız bir mum'} vardı. Yön ${bugun.teyit === 'yukari' ? 'yukarı' : 'aşağı'} döndü.`]);
   },
 };
 

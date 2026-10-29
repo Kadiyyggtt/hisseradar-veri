@@ -14,6 +14,10 @@ import { join } from 'node:path';
 import { kuyrukIlerlet, sabahIlkKosuMu, sessizSaatMi } from './bildirim-metin';
 import { fiyatYuvarla, sonMumlariOku, veriGeriMi, veriTarihiYaz, yeniEslesmeler } from './calistir';
 import { gunOnce } from './stratejiler/ortak';
+import { saatlikGetir } from './veri/getir';
+import { ayTamamMi, gunKapanisi, gunTamamMi, haftaTamamMi, tamamlanmisSeriler } from './veri/tamamlanmis';
+import { VeriHatasi } from './veri/yahoo';
+import type { Mum, Seriler } from './tipler';
 import { gonder, gonderimSerbestMi, ozetYaz } from './fcm';
 import type { Eslesme, HedefUlasan } from './tipler';
 import { ABD_HISSELER, adDuzelt, AD_EN_COK, BIST_HISSELER, BIST_KAYNAK, HISSE_BILGI, TURKCE_AD } from './veri/evren';
@@ -183,9 +187,15 @@ async function main() {
     kontrol('calistir geri giden hisseyi VeriHatasi("eski") ile hatalı sayar', /veriGeriMi\(oncekiT, sonT\)\) throw new VeriHatasi\('eski'/.test(kaynak));
     kontrol('calistir önceki grafik.json\'u koruma için okur', /sonMumlariOku\(JSON\.parse\(readFileSync\(oncekiGrafikYol/.test(kaynak));
     kontrol('yahoo.ts hata türleri "eski"yi içerir', /'kisa' \| 'eski'/.test(readFileSync(join(BURASI, 'veri', 'yahoo.ts'), 'utf8')));
-    kontrol('"0 gün önce" yazılmaz: gunOnce(0) → bugün', gunOnce(0) === 'bugün' && gunOnce(0, true) === 'Bugün' && gunOnce(3) === '3 gün önce');
+    kontrol('"0 gün önce" ve "bugün" yazılmaz: gunOnce(0) → son kapanışta', gunOnce(0) === 'son kapanışta' && gunOnce(0, true) === 'Son kapanışta' && gunOnce(3) === '3 işlem günü önce');
+    {
+      // Tarama yalnız kapanmış mumu gördüğü için açıklamada "bugün/dün/bu hafta/bu ay" geçmez (seans içinde yanlış olur).
+      const hepsi = ['araclar.ts', 'formasyonlar.ts', 'harmonik.ts', 'klasik.ts', 'maliyet.ts', 'mumlar.ts', 'ortalamalar.ts', 'sekiller.ts'].map((d) => readFileSync(join(BURASI, 'stratejiler', d), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')).join('\n');
+      const kalan = hepsi.match(/['`"][^'`"\n]*\b(bugün|Bugün|dün|Dün|bu hafta|Bu hafta|bu ay|Bu ay)\b[^'`"\n]*['`"]/g) ?? [];
+      kontrol('strateji cümlelerinde bugün/dün/bu hafta/bu ay yok', kalan.length === 0, kalan.slice(0, 3));
+    }
     const stratejiler = ['ortalamalar.ts', 'klasik.ts'].map((d) => readFileSync(join(BURASI, 'stratejiler', d), 'utf8')).join('\n');
-    kontrol('stratejilerde çıplak "${x} gün önce" kalıbı kalmadı', !/\$\{(?!gunOnce)[^}]*\} gün önce/.test(stratejiler));
+    kontrol('stratejilerde çıplak "${x} gün önce" kalıbı kalmadı', !/\$\{(?!gunOnce)[^}]*\} gün önce/.test(stratejiler) && !/ gün önce'/.test(stratejiler));
   }
 
   // 4b. FİYAT YUVARLAMA: float32 artığı portföye/sicile girmez.
@@ -194,6 +204,89 @@ async function main() {
     kontrol('1 altı 4 ondalık: 0.123456 → 0.1235', fiyatYuvarla(0.123456) === 0.1235, fiyatYuvarla(0.123456));
     const kaynak = readFileSync(join(BURASI, 'calistir.ts'), 'utf8');
     kontrol('calistir fiyatlar haritasına yuvarlanmış fiyat yazar', /fiyatlar\.set\([^;]*fiyatYuvarla\(/.test(kaynak));
+  }
+
+  // 4c. TAMAMLANMIŞ MUM (29 Ekim 2026 son testi): sinyal yalnız kapanmış mumdan. Veri GERÇEK: THYAO.IS
+  // günlük mumları, 13-30 Ekim 2025 (Yahoo). O ay da 28 Ekim yarım gün, 29 Ekim bayramdı. Beklenen
+  // haftalık değerler elle toplandı (açılış = haftanın ilk açılışı, yüksek = en yüksek, düşük = en düşük,
+  // kapanış = son kapanış, hacim = toplam).
+  {
+    const ham: [number, number, number, number, number, number][] = [
+      [1760337000, 309.5, 312.25, 307.75, 309.0, 29718699], // Pzt 13 Eki
+      [1760423400, 309.25, 310.25, 300.25, 302.0, 31639213],
+      [1760509800, 302.75, 306.25, 298.0, 300.75, 41747312],
+      [1760596200, 299.25, 302.0, 295.5, 296.0, 38875850],
+      [1760682600, 295.0, 296.0, 287.75, 292.0, 57747825], // Cum 17 Eki
+      [1760941800, 293.25, 300.25, 290.0, 297.75, 51523112], // Pzt 20 Eki
+      [1761028200, 298.5, 298.75, 293.0, 294.5, 30462184],
+      [1761114600, 295.5, 296.0, 287.0, 288.0, 42484656],
+      [1761201000, 288.5, 290.25, 283.75, 284.25, 40555813],
+      [1761287400, 287.0, 302.25, 287.0, 297.0, 84622262], // Cum 24 Eki
+      [1761546600, 297.0, 298.5, 293.0, 295.0, 27751916], // Pzt 27 Eki
+      [1761633000, 294.75, 295.75, 292.0, 292.0, 10268579], // Sal 28 Eki (yarım gün)
+      [1761805800, 292.75, 294.75, 289.5, 290.0, 27637939], // Prş 30 Eki (29 bayram)
+    ];
+    const gunluk: Mum[] = ham.map(([t, a, y, d, k, h]) => ({ t, a, y, d, k, h }));
+    const seri = (piyasa: 'BIST' | 'ABD', g: Mum[], saatlik: Mum[] = []): Seriler => ({ sembol: 'THYAO', piyasa, '1h': saatlik, '4h': [], '1d': g, '1w': [], '1mo': [] });
+    const utc = (ay: number, gun: number, saat: number, dk = 0) => Date.UTC(2025, ay - 1, gun, saat, dk) / 1000;
+
+    // Perşembe 30 Ekim 2025, seans içi (17:31 TR = 14:31 UTC).
+    const seans = tamamlanmisSeriler(seri('BIST', gunluk), utc(10, 30, 14, 31));
+    const sg = seans.seriler['1d'];
+    kontrol('seans içi: oluşan günlük mum taramaya girmez, son kapanış 28 Ekim 292,00', sg.length === 12 && sg[11].t === 1761633000 && sg[11].k === 292.0 && seans.olusuyor.gun, sg[sg.length - 1]);
+    kontrol('seans içi: tatil sonrası kapanış tarihi 28 Ekim (29 Ekim değil)', veriTarihiYaz(sg[sg.length - 1].t) === '2025-10-28');
+    const sh = seans.seriler['1w'];
+    const h1 = sh[sh.length - 2];
+    const h2 = sh[sh.length - 1];
+    kontrol('seans içi: oluşan hafta (27 Ekim) atılır, son hafta 20-24 Ekim', sh.length === 2 && h2.t === 1760941800 && seans.olusuyor.hafta, sh.map((m) => m.t));
+    kontrol('elle: 13-17 Ekim haftası A 309,5 Y 312,25 D 287,75 K 292 H 199.728.899', h1.a === 309.5 && h1.y === 312.25 && h1.d === 287.75 && h1.k === 292.0 && h1.h === 199728899, h1);
+    kontrol('elle: 20-24 Ekim haftası A 293,25 Y 302,25 D 283,75 K 297 H 249.648.027', h2.a === 293.25 && h2.y === 302.25 && h2.d === 283.75 && h2.k === 297.0 && h2.h === 249648027, h2);
+    kontrol('seans içi: ay bitmeden Ekim aylık mumu taramaya girmez', seans.seriler['1mo'].length === 0 && seans.olusuyor.ay, seans.seriler['1mo']);
+
+    // Aynı gün kapanıştan sonra (18:20 TR = 15:20 UTC): gün kapandı, hafta ve ay hâlâ açık.
+    const aksam = tamamlanmisSeriler(seri('BIST', gunluk), utc(10, 30, 15, 20));
+    kontrol('kapanış sonrası: 30 Ekim 290,00 kapanmış sayılır', aksam.seriler['1d'].length === 13 && aksam.seriler['1d'][12].k === 290.0 && !aksam.olusuyor.gun);
+    kontrol('kapanış sonrası perşembe: hafta yine oluşuyor', aksam.olusuyor.hafta && aksam.seriler['1w'].length === 2);
+    // Cumartesi 1 Kasım 2025: hafta ve Ekim ayı kapandı.
+    const cmt = tamamlanmisSeriler(seri('BIST', gunluk), utc(11, 1, 10, 0));
+    const h3 = cmt.seriler['1w'][2];
+    kontrol('elle: 27-30 Ekim haftası A 297 Y 298,5 D 289,5 K 290 (cumartesi kapanmış)', cmt.seriler['1w'].length === 3 && h3.a === 297.0 && h3.y === 298.5 && h3.d === 289.5 && h3.k === 290.0 && !cmt.olusuyor.hafta, h3);
+    const ekim = cmt.seriler['1mo'][0];
+    kontrol('elle: Ekim aylık (13-30) A 309,5 Y 312,25 D 283,75 K 290 (ay kapandı)', cmt.seriler['1mo'].length === 1 && ekim.a === 309.5 && ekim.y === 312.25 && ekim.d === 283.75 && ekim.k === 290.0 && !cmt.olusuyor.ay, ekim);
+
+    // Kenar kuralları.
+    kontrol('BIST gün kapanışı 15:15 UTC (18:15 TR)', gunKapanisi('BIST', 2025, 9, 30) === utc(10, 30, 15, 15));
+    kontrol('ABD yaz saati: 30 Eki 2025 kapanış 20:15 UTC', gunKapanisi('ABD', 2025, 9, 30) === utc(10, 30, 20, 15));
+    kontrol('ABD kış saati: 3 Kas 2025 kapanış 21:15 UTC', gunKapanisi('ABD', 2025, 10, 3) === utc(11, 3, 21, 15));
+    const abdGun = utc(11, 3, 14, 30);
+    kontrol('ABD kışın 20:30 UTC seans sürüyor, 21:16 kapanmış', !gunTamamMi('ABD', abdGun, utc(11, 3, 20, 30)) && gunTamamMi('ABD', abdGun, utc(11, 3, 21, 16)));
+    kontrol('hafta: cuma kapanışından 1 dk önce açık, sonra kapalı', !haftaTamamMi('BIST', 1761546600, utc(10, 31, 15, 14)) && haftaTamamMi('BIST', 1761546600, utc(10, 31, 15, 15)));
+    kontrol('ay: Kasım 2025 son iş günü 28 Kasım cuma (29-30 hafta sonu)', !ayTamamMi('BIST', utc(11, 3, 6, 30), utc(11, 28, 15, 0)) && ayTamamMi('BIST', utc(11, 3, 6, 30), utc(11, 28, 15, 15)));
+    const saatlik: Mum[] = [utc(10, 30, 6, 30), utc(10, 30, 7, 30), utc(10, 31, 6, 30)].map((t) => ({ t, a: 1, y: 1, d: 1, k: 1, h: 1 }));
+    const s1 = tamamlanmisSeriler(seri('BIST', gunluk, saatlik), utc(10, 31, 7, 0));
+    kontrol('1 saat: başlangıcından 1 saat geçmeyen mum atılır', s1.seriler['1h'].length === 2 && s1.olusuyor.saat);
+    kontrol('4 saat: yalnız seansı kapanmış günlerden (31 Ekim mumu girmez)', s1.seriler['4h'].length === 2 && s1.seriler['4h'].every((m) => m.t < utc(10, 31, 0, 0)), s1.seriler['4h']);
+    const kaynak = readFileSync(join(BURASI, 'calistir.ts'), 'utf8');
+    kontrol('calistir: tarayıcılar tamamlanmış seriyle koşar, grafik ham seriden ve "olusuyor" işaretli', /const \{ seriler, olusuyor \} = tamamlanmisSeriler\(ham, simdi\)/.test(kaynak) && /t\.tara\(seriler, ortam\)/.test(kaynak) && /const g = ham\['1d'\]\.slice\(-60\)/.test(kaynak) && /olusuyor\.gun \? \{ olusuyor: true/.test(kaynak));
+    kontrol('calistir: kapanış tarihi piyasa başına yazılır', /sonuc\.kapanis = kapanis/.test(kaynak));
+    kontrol('ortam (Endeks Nabzı) yalnız kapanmış günlerden', /kapanmisGunlerinSaatlikleri\(/.test(readFileSync(join(BURASI, 'ortam.ts'), 'utf8')));
+  }
+
+  // 4d. SAATLİK VERİ 422 YEDEĞİ: iki yıldan genç hissede (EFOR, ilk işlem 5 Temmuz 2024) '730d' HTTP 422 döner.
+  {
+    const istekler: string[] = [];
+    const sahte = async (_s: string, _a: '1h', u: string): Promise<Mum[]> => {
+      istekler.push(u);
+      if (u === '730d') throw new VeriHatasi('aralik', 'HTTP 422');
+      return [{ t: 1, a: 1, y: 1, d: 1, k: 1, h: 1 }];
+    };
+    const m = await saatlikGetir('EFOR.IS', sahte);
+    kontrol('422 gelince 2y ile yeniden istenir', m.length === 1 && istekler.join() === '730d,2y', istekler);
+    istekler.length = 0;
+    let firladi = false;
+    try { await saatlikGetir('X.IS', async (_s, _a, u) => { istekler.push(u); throw new VeriHatasi('ag', 'HTTP 503'); }); } catch { firladi = true; }
+    kontrol('ağ hatasında yedek denenmez, hata iletilir', firladi && istekler.join() === '730d', istekler);
+    kontrol('yahoo.ts 422\'yi "aralik" sayar', /status === 422\) throw new VeriHatasi\('aralik'/.test(readFileSync(join(BURASI, 'veri', 'yahoo.ts'), 'utf8')));
   }
 
   // 5. EVREN ARACI: Türkçe ad sözlüğünü ezmez, dosyayı birebir yeniden üretir.

@@ -17,7 +17,8 @@ export const ZAMAN_ASIMI_MS = 15000;
  *   kisa → veri var ama tarama için yetmeyecek kadar kısa
  */
 /** eski: kaynak bu koşuda önceki koşudan daha ESKİ bir son mum döndürdü (gece yeniden işleme); hisse bu koşuda atlanır. */
-export type VeriHataTuru = 'yok' | 'hiz' | 'ag' | 'kisa' | 'eski';
+/** 'aralik': kaynak istenen tarih aralığını reddetti (HTTP 422; ör. iki yıldan genç hissede 730 günlük saatlik istek). */
+export type VeriHataTuru = 'yok' | 'hiz' | 'ag' | 'kisa' | 'eski' | 'aralik';
 
 export class VeriHatasi extends Error {
   constructor(readonly tur: VeriHataTuru, mesaj: string) {
@@ -88,6 +89,8 @@ async function getirYenidenDene(url: string, deneme = 3): Promise<Response> {
     if (c.ok) return c;
     // 404: sembol yok (halka arzı geri çekilmiş, sertifika). Yeniden denemek yalnız kaynağı yorar.
     if (c.status === 404) throw new VeriHatasi('yok', 'HTTP 404');
+    // 422: aralık bu sembolde geçersiz; aynı isteği yinelemek yine 422 döner.
+    if (c.status === 422) throw new VeriHatasi('aralik', 'HTTP 422');
     if (c.status === 429) sonHata = new VeriHatasi('hiz', 'HTTP 429');
     else if (c.status >= 500) sonHata = new VeriHatasi('ag', `HTTP ${c.status}`);
     else throw new VeriHatasi('ag', `HTTP ${c.status}`);

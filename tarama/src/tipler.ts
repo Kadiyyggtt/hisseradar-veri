@@ -140,6 +140,8 @@ export interface GrafikSerisi {
   ad?: string;
   sektor?: string;
   g?: Gosterge;
+  /** Son mum seans içinde alındı (oluşuyor): son değer kapanış değil, gecikmeli fiyat. Kapanmışsa alan yok. */
+  olusuyor?: true;
 }
 export type GrafikVerisi = { surum: 1; uretildi: number; seriler: Record<string, GrafikSerisi> };
 
@@ -154,6 +156,8 @@ export interface TaramaSonucu {
   portfoy?: Portfoy;
   /** Taranan en son günlük mumun İstanbul tarihi (YYYY-MM-DD): "son kapanış hangi gün". Eski dosyada yok. */
   veriTarihi?: string;
+  /** Piyasa başına son KAPANMIŞ günlük mumun tarihi (YYYY-MM-DD). Hisse ekranı kendi serisinin tarihini kullanır. */
+  kapanis?: { BIST?: string; ABD?: string };
 }
 
 export interface Tarayici {

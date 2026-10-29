@@ -120,10 +120,13 @@ export function hedefleriSuz(sev: Record<string, number>, yon: Yon, fiyat: numbe
 
 export const kapanislar = (m: { k: number }[]) => m.map((x) => x.k);
 
-/** "3 gün önce" / "bugün"; cümle başında büyük harfle. "0 gün önce" yazılmaz. */
+/**
+ * Son KAPANMIŞ muma göre zaman: "son kapanışta" / "3 işlem günü önce"; cümle başında büyük harfle.
+ * "Bugün" yazılmaz: tarama yalnız kapanmış mumu görür, seans içindeki koşuda son kapanış dündür.
+ */
 export function gunOnce(n: number, cumleBasi = false): string {
-  if (n <= 0) return cumleBasi ? 'Bugün' : 'bugün';
-  return `${n} gün önce`;
+  if (n <= 0) return cumleBasi ? 'Son kapanışta' : 'son kapanışta';
+  return `${n} işlem günü önce`;
 }
 
 export function f2(n: number): string {

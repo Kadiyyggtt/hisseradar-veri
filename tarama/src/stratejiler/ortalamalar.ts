@@ -14,11 +14,11 @@ export const ema200: Tarayici = {
       const i = m.length - 1 - g;
       if (yukariKesti(k, e, i))
         return eslesme(s, 'ema200', '1d', 'al', 100,
-          [`Kapanış ${f2(m[i].k)} ile 200 günlük üssel ortalama (${f2(e[i])}) ${g === 0 ? 'bugün' : g + ' gün önce'} yukarı kesildi.`, 'Trend yeniden sağlıklı bölgeye döndü.'],
+          [`Kapanış ${f2(m[i].k)} ile 200 günlük üssel ortalama (${f2(e[i])}) ${gunOnce(g)} yukarı kesildi.`, 'Trend yeniden sağlıklı bölgeye döndü.'],
           { '200 günlük ortalama': e[i] });
       if (asagiKesti(k, e, i))
         return eslesme(s, 'ema200', '1d', 'sat', 100,
-          [`Kapanış ${f2(m[i].k)} ile 200 günlük üssel ortalama (${f2(e[i])}) ${g === 0 ? 'bugün' : g + ' gün önce'} aşağı kesildi.`, 'Trendde bozulma başladı.'],
+          [`Kapanış ${f2(m[i].k)} ile 200 günlük üssel ortalama (${f2(e[i])}) ${gunOnce(g)} aşağı kesildi.`, 'Trendde bozulma başladı.'],
           { '200 günlük ortalama': e[i] });
     }
     return null;
@@ -40,7 +40,7 @@ export const ema200Donus: Tarayici = {
     for (let j = i - 1; j >= Math.max(0, i - 40) && k[j] < e[j]; j--) altinda++;
     if (altinda < 10) return null;
     return eslesme(s, 'ema200-donus', '1d', 'al', 100,
-      [`Fiyat ${altinda} gün boyunca 200 günlük üssel ortalamanın altında kaldı ve ${g === 0 ? 'bugün' : g + ' gün önce'} yeniden üstüne çıktı.`, `200 günlük ortalama şu an ${f2(e[m.length - 1])}.`],
+      [`Fiyat ${altinda} gün boyunca 200 günlük üssel ortalamanın altında kaldı ve ${gunOnce(g)} yeniden üstüne çıktı.`, `200 günlük ortalama şu an ${f2(e[m.length - 1])}.`],
       { '200 günlük ortalama': e[m.length - 1] });
   },
 };
@@ -57,7 +57,7 @@ export const sma30w: Tarayici = {
     if (g < 0) return null;
     const i = m.length - 1 - g;
     return eslesme(s, 'sma30w', '1w', 'al', 100,
-      [`Haftalık kapanış, 30 haftalık ortalamayı (${f2(o[i])}) ${g === 0 ? 'bu hafta' : 'geçen hafta'} yukarı kesti.`, 'Kural, kâr hedefini yüzde 10 ile 15 arası, stopu 30 haftalık ortalamanın altı sayar.'],
+      [`Haftalık kapanış, 30 haftalık ortalamayı (${f2(o[i])}) ${g === 0 ? 'son haftalık kapanışta' : 'bir önceki haftalık kapanışta'} yukarı kesti.`, 'Kural, kâr hedefini yüzde 10 ile 15 arası, stopu 30 haftalık ortalamanın altı sayar.'],
       { '30 haftalık ortalama': o[i], '%10 hedefi': m[i].k * 1.1, '%15 hedefi': m[i].k * 1.15 });
   },
 };
@@ -159,7 +159,7 @@ export const aylik510: Tarayici = {
     const oncekiEnYuksek = Math.max(...m.slice(i - 3, i).map((x) => x.h));
     if (m[i].h <= oncekiEnYuksek) return null;
     return eslesme(s, 'aylik-5-10', '1mo', 'izle', 100,
-      ['Aylık kapanış, 10 aylık ortalamayı yukarı geçti.', 'Bu ayın hacmi önceki üç ayın en yüksek hacmini aştı.', 'Tek başına sinyal değildir; takip listesi adayı.'],
+      ['Aylık kapanış, 10 aylık ortalamayı yukarı geçti.', 'Son kapanan ay mumunun hacmi önceki üç ayın en yüksek hacmini aştı.', 'Tek başına sinyal değildir; takip listesi adayı.'],
       { '10 aylık ortalama': e10[i] });
   },
 };
@@ -193,7 +193,7 @@ export const fibMerdiveni: Tarayici = {
       [
         '55, 89, 144 ve 233 günlük ortalamalar yukarıdan aşağıya sıralı, dizilim bozulmamış.',
         `Fiyat ${gunOnce(i - daldi)} 144 ile 233 günlük ortalamalar arasındaki bölgeye indi.`,
-        gecisBugun ? 'En üstteki ortalama olan 55 günlük bugün yukarı geçildi. Yükseliş şartı sağlandı.' : 'Fiyat henüz bölgede. 55 günlük ortalama boyun çizgisidir, geçilince yükseliş şartı sağlanır.',
+        gecisBugun ? 'En üstteki ortalama olan 55 günlük son kapanışta yukarı geçildi. Yükseliş şartı sağlandı.' : 'Fiyat henüz bölgede. 55 günlük ortalama boyun çizgisidir, geçilince yükseliş şartı sağlanır.',
         ustte ? '' : '',
       ].filter(Boolean),
       { '55 günlük (boyun çizgisi)': e55[i], '144 günlük ortalama': e144[i], '233 günlük ortalama': e233[i] });
@@ -236,7 +236,7 @@ export const sikisma200: Tarayici = {
       [
         `Fiyat ${gunOnce(i - dokundu)} 200 günlük ortalamaya (${f2(e200[dokundu])}) dokundu ve 8 ile 200 günlük ortalamalar arasında sıkıştı.`,
         `${gunOnce(gecis, true)} 8 günlük ortalamayı yukarı geçti. Geçiş sonrası tepe ${f2(tepe)}.`,
-        dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' bugün geçildi, yükseliş şartı sağlandı.' : ' henüz geçilmedi.'}` : 'Geçişten sonra henüz düşük oluşmadı.',
+        dusukYapti ? `Geçişten sonraki ilk düşük ${f2(dip)}. Yüzde 61,8 seviyesi ${f2(seviye618)}${alSinyali ? ' son kapanışta geçildi, yükseliş şartı sağlandı.' : ' henüz geçilmedi.'}` : 'Geçişten sonra henüz düşük oluşmadı.',
       ],
       { '200 günlük ortalama': e200[i], '8 periyotluk ortalama': e8[i], '%61,8 seviyesi': seviye618, Tepe: tepe });
   },
