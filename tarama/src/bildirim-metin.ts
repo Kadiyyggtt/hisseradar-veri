@@ -114,7 +114,7 @@ export function sabahBrifingi(sonuc: TaramaSonucu, yeni: Eslesme[], simdi = Date
 
 /**
  * HAFTALIK ÖZET (pazar 18:00): son 7 günde kapanan karne kayıtları, hedefe ulaşma oranı,
- * en isabetli formasyon, hayali portföyün hafta değeri.
+ * hedefe en sık ulaşan formasyon, hayali portföyün hafta değeri.
  */
 export function haftalikOzet(sonuc: TaramaSonucu, sicil: Sicil | null, simdi = Date.now()): BildirimMetni {
   const haftaOnce = Math.floor(simdi / 1000) - 7 * 86400;
@@ -125,11 +125,11 @@ export function haftalikOzet(sonuc: TaramaSonucu, sicil: Sicil | null, simdi = D
   for (const k of kapanan) { const o = basari.get(k.taramaId) ?? { n: 0, u: 0 }; o.n++; if (k.sonuc === 'ulasti') o.u++; basari.set(k.taramaId, o); }
   const enIyi = [...basari.entries()].filter(([, o]) => o.n >= 3).sort((a, b) => b[1].u / b[1].n - a[1].u / a[1].n)[0];
   const parcalar: string[] = [];
-  if (kapanan.length) parcalar.push(`Bu hafta ${sayac(kapanan.length, 'formasyon')} sonuçlandı: ${ulasan} hedefe ulaştı, ${kapanan.length - ulasan} süresi doldu (yüzde ${Math.round((ulasan * 100) / kapanan.length)} isabet).`);
+  if (kapanan.length) parcalar.push(`Bu hafta ${sayac(kapanan.length, 'formasyon')} sonuçlandı: ${ulasan} hedefe ulaştı, ${kapanan.length - ulasan} süresi doldu (hedefe ulaşma oranı yüzde ${Math.round((ulasan * 100) / kapanan.length)}).`);
   else parcalar.push('Bu hafta sonuçlanan formasyon kaydı yok.');
   // Karne 30 günden gençse süresi dolan kayıt henüz yoktur; yüzde yanıltmasın.
   if (sicil && kapanan.length && !kapanan.some((k) => k.sonuc === 'ulasmadi') && sicil.acik.filter((k) => !esikAltiKayit(k)).length > kapanan.length) parcalar.push('Karne yeni; süresi dolan kayıt henüz yok, oran zamanla oturacak.');
-  if (enIyi) parcalar.push(`En isabetli formasyon ${TARAMA_ADLARI[enIyi[0]] ?? enIyi[0]}: ${enIyi[1].n} kayıttan ${enIyi[1].u} hedef.`);
+  if (enIyi) parcalar.push(`Geçmiş kayıtlarda hedefe en sık ulaşan formasyon ${TARAMA_ADLARI[enIyi[0]] ?? enIyi[0]}: ${enIyi[1].n} kayıttan ${enIyi[1].u} hedef.`);
   const hafta = sonuc.portfoy?.hafta;
   if (hafta) {
     // "yüzde 6,5 ekside"; yuvarlanınca sıfırsa "yatay" (eski metin "-0,0 ile ekside" yazıyordu).

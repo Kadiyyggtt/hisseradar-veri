@@ -93,7 +93,7 @@ export const saatlik926: Tarayici = {
     if (g < 0) return null;
     const nabiz = o.endeksNabzi[s.piyasa === 'BIST' ? 'XU100' : 'SPX']?.pozitif;
     return eslesme(s, 'saatlik-9-26', '1h', 'al', nabiz ? 100 : 70,
-      ['Saatlik grafikte 9 periyotluk üssel ortalama, 26 periyotluk ortalamayı yukarı kesti. Bu erken bir sinyaldir.', nabiz ? 'Endeks Nabzı pozitif, isabet artar.' : 'Endeks Nabzı negatif, isabet düşer.'],
+      ['Saatlik grafikte 9 periyotluk üssel ortalama, 26 periyotluk ortalamayı yukarı kesti. Bu erken bir sinyaldir.', nabiz ? 'Endeks Nabzı pozitif: kural bu sinyali endeks yönüyle uyumlu sayar.' : 'Endeks Nabzı negatif: kural bu sinyali endeks yönüne ters sayar.'],
       { '9 periyotluk ortalama': e9[m.length - 1], '26 periyotluk ortalama': e26[m.length - 1] });
   },
 };

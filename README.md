@@ -1,11 +1,11 @@
 # HisseRadar veri
 
-HisseRadar uygulamasının tarama motoru. GitHub Actions hafta içi günde dört kez çalışır, BIST ve ABD hisselerini
+HisseRadar uygulamasının tarama motoru. GitHub Actions gün içinde düzenli olarak çalışır, BIST ve ABD hisselerini
 taramalara göre tarar ve sonucu `docs/tarama/` altına yazar (GitHub Pages yayınlar). Uygulama yalnız bu dosyaları okur.
 
 ## Zamanlama
 
-- Tarama hafta içi dört kez: BIST açılış sonrası (sabah), gün ortası, kapanış sonrası ve ABD kapanışı sonrası (gece).
+- Tarama hafta içi zamanlanmış koşularla gün içinde düzenli olarak güncellenir. GitHub zamanlayıcısı koşuları saatlerce geciktirebildiği için saat vaadi verilmez. Tarama yalnız kapanmış mumları değerlendirir (tarama/src/veri/tamamlanmis.ts); oluşan mum grafikte "olusuyor" diye işaretlenir.
   Cron dakikaları :23 ve :53; GitHub zamanlanmış işleri saatlerce geciktirebildiği için saat vaadi yoktur.
 - Sabah brifingi hafta içi sabah, günün ilk sabah taramasının sonunda gider (tara → yayınla → bildir → brifing);
   tarama geç koşarsa brifing de onunla birlikte gelir. Haftalık özet pazar akşamı (brifing.yml).

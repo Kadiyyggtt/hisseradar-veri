@@ -485,8 +485,8 @@ console.log('sicil');
   const sicil: Sicil = { surum: 1, uretildi: sn, sureGun: 30, enAz: 5, acik: [kayit('qm', 'ulasti', 0)], ozet: {},
     kapali: [kayit('bayrak', 'ulasti', 1), kayit('bayrak', 'ulasti', 2), kayit('bayrak', 'ulasmadi', 3), kayit('qm', 'ulasmadi', 4), kayit('qm', 'ulasti', 12)] };
   const ho = haftalikOzet({ ...sonuc, portfoy: { hafta: { tur: 'hafta', anahtar: '2026-H43', baslangic: 0, pozisyonlar: [{ sembol: 'THYAO', piyasa: 'BIST', taramaId: 'qm', giris: 1, girisT: 0, simdi: 1, getiri: 0.02 }], deger: 102.3 }, ay: null, yil: null, gecmis: [] } }, sicil, simdi);
-  kontrol('hafta: son 7 günde 4 kayıt, 2 hedef, 2 süresi dolan, yüzde 50', /Bu hafta 4 formasyon sonuçlandı: 2 hedefe ulaştı, 2 süresi doldu \(yüzde 50 isabet\)\./.test(ho.govde), ho.govde);
-  kontrol('hafta: en isabetli formasyon en az 3 kayıtla', /En isabetli formasyon Bayrak ve Flama: 3 kayıttan 2 hedef\./.test(ho.govde), ho.govde);
+  kontrol('hafta: son 7 günde 4 kayıt, 2 hedef, 2 süresi dolan, yüzde 50', /Bu hafta 4 formasyon sonuçlandı: 2 hedefe ulaştı, 2 süresi doldu \(hedefe ulaşma oranı yüzde 50\)\./.test(ho.govde), ho.govde);
+  kontrol('hafta: hedefe en sık ulaşan formasyon en az 3 kayıtla (isabet sözcüğü yok)', !/isabet/i.test(ho.govde) && /Geçmiş kayıtlarda hedefe en sık ulaşan formasyon Bayrak ve Flama: 3 kayıttan 2 hedef\./.test(ho.govde), ho.govde);
   kontrol('hafta: hayali portföy "yüzde 2,3 artıda"', /haftayı yüzde 2,3 artıda kapattı \(THYAO\)/.test(ho.govde), ho.govde);
   const portfoyle = (deger: number) => haftalikOzet({ ...sonuc, portfoy: { hafta: { tur: 'hafta', anahtar: '2026-H43', baslangic: 0, pozisyonlar: [], deger }, ay: null, yil: null, gecmis: [] } }, null, simdi).govde;
   kontrol('hafta: portföy ekside "yüzde 6,5 ekside"', /haftayı yüzde 6,5 ekside kapattı/.test(portfoyle(93.5)), portfoyle(93.5));

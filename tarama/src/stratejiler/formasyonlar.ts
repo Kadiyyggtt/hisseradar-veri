@@ -338,7 +338,7 @@ export const ucluTepeDip: Tarayici = {
           [`Üçlü tepe: üç tepe ${f2(a.fiyat)}, ${f2(c.fiyat)} ve ${f2(e.fiyat)} seviyelerinde, ortalamadan sapma yüzde 2'nin altında. Aynı yerden üç kez geri çevrildi: Orada satıcı var.`,
            `Boyun çizgisi iki ara dibin alçağı, ${f2(boyun)}. Formasyon boyu ${f2(tavan - boyun)}.`,
            rsiIyi ? 'RSI üçüncü tepede ilk tepeden düşük: Alış gücü azalıyor.' : 'RSI uyumsuzluğu yok.',
-           kirildi ? 'Boyun çizgisi aşağı kırıldı; düşüş şartı sağlandı. Kural kitabında bu kırılım çıkış seviyesi sayılır.' : 'Boyun çizgisi henüz kırılmadı; kural, üçüncü tepeyi tek başına yeterli saymaz.'],
+           kirildi ? 'Boyun çizgisi aşağı kırıldı; düşüş şartı sağlandı. Kural bu kırılımı çıkış seviyesi sayar.' : 'Boyun çizgisi henüz kırılmadı; kural, üçüncü tepeyi tek başına yeterli saymaz.'],
           { Boyun: boyun, 'Hedef (bir boy aşağı)': boyun - (tavan - boyun), 'Hedef (iki boy aşağı)': boyun - 2 * (tavan - boyun), 'Stop (üçüncü tepe)': e.fiyat },
           (() => { const n = [a, b, c, d, e].map((q, k) => nokta(m, q.i, q.fiyat, k % 2 === 0 ? String(k / 2 + 1) : '')); return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, a.i, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());
       }

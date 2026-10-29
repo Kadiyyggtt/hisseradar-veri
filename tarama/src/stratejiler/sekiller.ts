@@ -259,7 +259,7 @@ export const tersFincanKulp: Tarayici = {
       return eslesme(s, 'ters-fincan-kulp', '1d', kirildi ? 'sat' : 'izle', kirildi ? (kat >= 1.5 ? 80 : 60) : 55,
         [`Ters fincan: ${uzunluk} mum süren yuvarlak tepe, yüksekliği yüzde ${(yukseklik * 100).toFixed(0)}. Tepe ${f2(tepe)} ortada, yani ters U biçiminde: aylar süren dağıtım.`,
          `Ters kulp: ${kulp.length} mum süren sığ bir sıçrama (yüzde ${(kulpYukseklik * 100).toFixed(0)}), fincanın alt yarısında kaldı. Boyun seviyesine son bir alıcı daha çekildi.`,
-         kirildi ? `Boyun çizgisi (${f2(boyun)}) kapanışla aşağı kırıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı. Kural kitabında bu kırılım çıkış seviyesi sayılır.` : `Boyun çizgisi (${f2(boyun)}) henüz aşağı kırılmadı. Kuralın stop seviyesi boyundur.`],
+         kirildi ? `Boyun çizgisi (${f2(boyun)}) kapanışla aşağı kırıldı. Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı. Kural bu kırılımı çıkış seviyesi sayar.` : `Boyun çizgisi (${f2(boyun)}) henüz aşağı kırılmadı. Kuralın stop seviyesi boyundur.`],
         // Formasyon boyu boyundan büyükse "iki boy aşağı" sıfırın altına düşer: o seviye yazılmaz.
         { Boyun: boyun, ...(boyun - boy > 0 ? { 'Hedef (bir boy aşağı)': boyun - boy } : {}), ...(boyun - 2 * boy > 0 ? { 'Hedef (iki boy aşağı)': boyun - 2 * boy } : {}), 'Stop (kulp tepesi)': kulpTepe },
         (() => { const kulpTepeI = sagI + kulp.reduce((en, x, j, a) => (x.y > a[en].y ? j : en), 0); const n = [nokta(m, bas, solDudak, 'Dudak'), nokta(m, tepeI, tepe, 'Tepe'), nokta(m, sagI, sagDudak, 'Dudak'), nokta(m, kulpTepeI, kulpTepe, 'Kulp')]; return { noktalar: n, cizgiler: [...bacaklar(n), cizgi(nokta(m, bas, boyun, ''), nokta(m, i, boyun, ''), 'boyun')] }; })());

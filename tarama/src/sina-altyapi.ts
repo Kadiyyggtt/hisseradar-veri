@@ -15,6 +15,7 @@ import { kuyrukIlerlet, sabahIlkKosuMu, sessizSaatMi } from './bildirim-metin';
 import { fiyatYuvarla, sonMumlariOku, veriGeriMi, veriTarihiYaz, yeniEslesmeler } from './calistir';
 import { gunOnce } from './stratejiler/ortak';
 import { saatlikGetir } from './veri/getir';
+import { darBayrak } from './stratejiler/klasik';
 import { ayTamamMi, gunKapanisi, gunTamamMi, haftaTamamMi, tamamlanmisSeriler } from './veri/tamamlanmis';
 import { VeriHatasi } from './veri/yahoo';
 import type { Mum, Seriler } from './tipler';
@@ -287,6 +288,18 @@ async function main() {
     try { await saatlikGetir('X.IS', async (_s, _a, u) => { istekler.push(u); throw new VeriHatasi('ag', 'HTTP 503'); }); } catch { firladi = true; }
     kontrol('ağ hatasında yedek denenmez, hata iletilir', firladi && istekler.join() === '730d', istekler);
     kontrol('yahoo.ts 422\'yi "aralik" sayar', /status === 422\) throw new VeriHatasi\('aralik'/.test(readFileSync(join(BURASI, 'veri', 'yahoo.ts'), 'utf8')));
+  }
+
+  // 4e. DAR BAYRAK: bez 5-20 gün (dersteki 12 günlük örnek). Eski kod (direkSon = i - 15) bezi hep 15-20 gün ölçüyordu.
+  {
+    const m: Mum[] = [];
+    const ekle = (k: number, y = k + 0.1, d = k - 0.1) => m.push({ t: 1_700_000_000 + m.length * 86400, a: k, y, d, k, h: 1000 });
+    for (let j = 0; j < 47; j++) ekle(12);
+    ekle(10, 10.1, 9.9); // direğin dibi (47)
+    for (let j = 1; j <= 20; j++) ekle(10 + j * 0.5); // direk: 20 günde 10 → 20 (tepe 67, y 20,1)
+    for (let j = 0; j < 12; j++) ekle(19 + (j % 2) * 0.5, 19.8, 18.6); // 12 günlük dar bez
+    const e = darBayrak.tara({ sembol: 'X', piyasa: 'BIST', '1h': [], '4h': [], '1d': m, '1w': [], '1mo': [] }, { endeksNabzi: { XU100: null, SPX: null } });
+    kontrol('dar bayrak: 12 günlük bez bulunur ve 12 gün diye yazılır', !!e && e.aciklama.some((c) => c.startsWith('Bayrak: 12 gün')), e?.aciklama);
   }
 
   // 5. EVREN ARACI: Türkçe ad sözlüğünü ezmez, dosyayı birebir yeniden üretir.

@@ -57,7 +57,7 @@ export const kuyrukluW: Tarayici = {
   },
 };
 
-/** 6.7 — Yüksek ve dar bayrak: 40 günde ≥%90, son 15 gün sığ (<%25) ve dar. */
+/** 6.7 — Yüksek ve dar bayrak: 40 günde ≥%90 direk, ardından 5-20 günlük sığ (<%25) ve dar bez. */
 export const darBayrak: Tarayici = {
   id: 'k-dar-bayrak',
   tara(s) {
@@ -65,7 +65,9 @@ export const darBayrak: Tarayici = {
     const i = m.length - 1;
     if (i < 60) return null;
     const direkBas = i - 55;
-    const direkSon = i - 15;
+    // Bez 5-20 gün: direğin tepesi en geç 5 mum önce. Eskiden i - 15 idi; bez hep 15-20 gün çıkıyor,
+    // dersteki 12 günlük bayrak hiç bulunamıyordu (29 Ekim 2026 son testi).
+    const direkSon = i - 5;
     let enD = Infinity;
     let enDI = direkBas;
     for (let j = direkBas; j <= direkSon; j++) if (m[j].d < enD) { enD = m[j].d; enDI = j; }

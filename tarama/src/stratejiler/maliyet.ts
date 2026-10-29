@@ -126,7 +126,7 @@ export const yeniDongu: Tarayici = {
     return eslesme(s, 'yeni-dongu', '1d', 'al', kat >= 1.5 ? 85 : 55,
       [
         `3 noktası ${f2(uc.fiyat)} ile maliyete (${f2(maliyet)}) inmedi. Satış isteksiz.`,
-        gecti ? `${f2(satisMaliyeti)} satış maliyeti son kapanışta geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Kural kitabında bu bölge ekleme bölgesi sayılır.`,
+        gecti ? `${f2(satisMaliyeti)} satış maliyeti son kapanışta geçildi.` : `${f2(d.iki.fiyat)} zirvesi geçildi. Kural bu bölgeyi ekleme bölgesi sayar.`,
         `Hacim ortalamanın ${kat.toFixed(1).replace('.', ',')} katı${kat >= 1.5 ? ', iştahlı bir geçiş.' : ', zayıf bir geçiş. İkili tepe riski var.'}`,
       ],
       { 'Satış maliyeti': satisMaliyeti, 'Zirve (2 noktası)': d.iki.fiyat, 'Maliyet (%61,8)': maliyet });
