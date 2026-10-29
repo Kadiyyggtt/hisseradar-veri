@@ -543,13 +543,13 @@ console.log('sicil');
 // ABCD: %127/%161 ölçüleri D'nin tamamlanma bölgesidir ("D bölgesi"); karneye giren "Hedef" fiyatın üstünde olmalı.
 console.log('abcd: D bölgesi ve gerçek hedef');
 {
-  // Düşüş ABCD: A 120 tepe, B 100 dip, C %61,8 geri alım (112,36), D = C + (B-C)·1,272 ≈ 96,64; son mum D'de.
+  // Dipte tamamlanan ABCD (bullish): A 120 tepe, B 100 dip, C %61,8 geri alım (112,36), D = C + (B-C)·1,272 ≈ 96,64; son mum D'de.
   const A = 120; const B = 100; const C = B + (A - B) * 0.618; const D = C + (B - C) * 1.272;
   const k = [...sabit(60, 104), ...dogrusal(15, 104, A), ...dogrusal(12, A, B), ...dogrusal(10, B, C), ...dogrusal(12, C, D)];
   const s = seri(mumla(k, undefined, 0.002));
   for (const id of ['abcd-esnek', 'abcd-klasik']) {
     const e = tarayici(id).tara(s, ORTAM);
-    kontrol(`${id}: düşüş ABCD uymalı, yön al`, e !== null && e.yon === 'al', e ? e.yon + ' ' + JSON.stringify(e.seviyeler) : 'null');
+    kontrol(`${id}: dipte tamamlanan ABCD uymalı, yön al`, e !== null && e.yon === 'al', e ? e.yon + ' ' + JSON.stringify(e.seviyeler) : 'null');
     if (!e?.seviyeler) continue;
     const hedefler = Object.entries(e.seviyeler).filter(([ad]) => /hedef/i.test(ad));
     kontrol(`${id}: "Hedef" adlı her seviye fiyatın en az yüzde 1,5 üstünde`, hedefler.length >= 2 && hedefler.every(([, v]) => v >= e.fiyat * EN_AZ_HEDEF_ORANI), JSON.stringify(hedefler) + ' fiyat ' + e.fiyat);

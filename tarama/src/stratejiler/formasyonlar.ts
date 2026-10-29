@@ -209,9 +209,10 @@ export const abcdEsnek: Tarayici = {
     const [A, B, C] = p.slice(-4, -1);
     const D = p[p.length - 1];
     if (i - D.i > 3) return null;
-    const dususABCD = A.tur === 'tepe' && B.tur === 'dip' && C.tur === 'tepe';
-    const yukselisABCD = A.tur === 'dip' && B.tur === 'tepe' && C.tur === 'dip';
-    if (!dususABCD && !yukselisABCD) return null;
+    // Fiyat aşağı A-B-C-D çizer, D yeni dip: "dipte tamamlanan ABCD" (bullish). Tersi "tepede tamamlanan" (bearish).
+    const dipteABCD = A.tur === 'tepe' && B.tur === 'dip' && C.tur === 'tepe';
+    const tepedeABCD = A.tur === 'dip' && B.tur === 'tepe' && C.tur === 'dip';
+    if (!dipteABCD && !tepedeABCD) return null;
     const c = Math.abs(geriAlma(A.fiyat, B.fiyat, C.fiyat));
     if (c < 0.3 || c > 0.95) return null;
     const yuzdeC = Math.round(c * 100);
@@ -224,18 +225,18 @@ export const abcdEsnek: Tarayici = {
     const dYakin = hedefler.some((h) => yakin(m[i].k, h, 2.5)) || klasik.some((h) => yakin(m[i].k, h, 2.5));
     if (!dYakin) return null;
     // 1/C ölçüleri D'nin TAMAMLANMA bölgesidir (fiyat zaten orada); "Hedef" adı karneyi yüzde 0,3'lük hedefle şişiriyordu.
-    // Gerçek yukarı (düşüş ABCD'de) hedef, dönüşte CD bacağının geri alımıdır. Sıfırın altına düşen bölge yazılmaz (eslesme süzer).
+    // Gerçek yukarı (dipte tamamlanan ABCD'de) hedef, dönüşte CD bacağının geri alımıdır. Sıfırın altına düşen bölge yazılmaz (eslesme süzer).
     const cd = C.fiyat - D.fiyat;
     const ht1 = D.fiyat + cd * 0.382;
     const ht2 = D.fiyat + cd * 0.618;
     const bolgeler = hedefler.slice(0, 2).filter((h) => h > 0);
-    const yon = dususABCD ? 'al' : 'sat';
+    const yon = dipteABCD ? 'al' : 'sat';
     const hp = hedefParcalari([['yüzde 38,2', ht1], ['yüzde 61,8', ht2]], yon, m[i].k);
     return eslesme(s, 'abcd-esnek', '1d', yon, 60,
-      [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: A noktası ${f2(A.fiyat)}, B noktası ${f2(B.fiyat)}, C noktası ${f2(C.fiyat)}.`,
+      [`${dipteABCD ? 'Dipte tamamlanan ABCD' : 'Tepede tamamlanan ABCD'}: A noktası ${f2(A.fiyat)}, B noktası ${f2(B.fiyat)}, C noktası ${f2(C.fiyat)}.`,
        `C noktası, A ile B arasının yüzde ${yuzdeC}${belirtmeEki(yuzdeC)} geri aldı. 1 bölü ${yuzdeC} eşittir ${katsayi.toFixed(4).replace('.', ',')}, yani D bölgesi yüzde ${hedefYuzde}.`,
        `Fiyat D bölgesinde${bolgeler.length ? ` (${bolgeler.map(f2).join(' ve ')})` : ''}. Yedek D ölçüleri yüzde 127,2 için ${f2(klasik[0])}, yüzde 161,8 için ${f2(klasik[1])}.`,
-       `${dususABCD ? 'Düşüş' : 'Yükseliş'} dalgası burada bitebilir. ${hp.length ? `Dönüş gelirse hedefler CD bacağının geri alımıdır: ${hp.join(', ')}.` : 'CD bacağının geri alım ölçüleri fiyata yüzde 1,5\'ten yakın kaldı.'}`],
+       `${dipteABCD ? 'Düşüş' : 'Yükseliş'} dalgası burada bitebilir. ${hp.length ? `Dönüş gelirse hedefler CD bacağının geri alımıdır: ${hp.join(', ')}.` : 'CD bacağının geri alım ölçüleri fiyata yüzde 1,5\'ten yakın kaldı.'}`],
       { 'D bölgesi 1': hedefler[0], 'D bölgesi 2': hedefler[1], 'D bölgesi (%127,2)': klasik[0], 'D bölgesi (%161,8)': klasik[1], 'Hedef 1 (CD %38,2 geri alımı)': ht1, 'Hedef 2 (CD %61,8 geri alımı)': ht2 },
       (() => { const n = [nokta(m, A.i, A.fiyat, 'A'), nokta(m, B.i, B.fiyat, 'B'), nokta(m, C.i, C.fiyat, 'C'), nokta(m, D.i, m[i].k, 'D')]; return { noktalar: n, cizgiler: bacaklar(n) }; })());
   },

@@ -310,9 +310,10 @@ export const abcdKlasik: Tarayici = {
     const [A, B, C] = p.slice(-4, -1);
     const D = p[p.length - 1];
     if (i - D.i > 3) return null;
-    const dususABCD = A.tur === 'tepe' && B.tur === 'dip' && C.tur === 'tepe';
-    const yukselisABCD = A.tur === 'dip' && B.tur === 'tepe' && C.tur === 'dip';
-    if (!dususABCD && !yukselisABCD) return null;
+    // Fiyat aşağı A-B-C-D çizer, D yeni dip: "dipte tamamlanan ABCD" (bullish). Tersi "tepede tamamlanan" (bearish).
+    const dipteABCD = A.tur === 'tepe' && B.tur === 'dip' && C.tur === 'tepe';
+    const tepedeABCD = A.tur === 'dip' && B.tur === 'tepe' && C.tur === 'dip';
+    if (!dipteABCD && !tepedeABCD) return null;
     const c = Math.abs((C.fiyat - B.fiyat) / (A.fiyat - B.fiyat));
     const cUyar = yakin(c, 0.618, 6) || yakin(c, 0.786, 6);
     if (!cUyar) return null;
@@ -327,10 +328,10 @@ export const abcdKlasik: Tarayici = {
     const cd = C.fiyat - D.fiyat;
     const ht1 = D.fiyat + cd * 0.382;
     const ht2 = D.fiyat + cd * 0.618;
-    const yon = dususABCD ? 'al' : 'sat';
+    const yon = dipteABCD ? 'al' : 'sat';
     const hp = hedefParcalari([['yüzde 38,2', ht1], ['yüzde 61,8', ht2]], yon, m[i].k);
     return eslesme(s, 'abcd-klasik', '1d', yon, yakin(abSure, cdSure, 25) ? 70 : 55,
-      [`${dususABCD ? 'Düşüş' : 'Yükseliş'} ABCD: C noktası, A ile B arasının yüzde ${(c * 100).toFixed(1).replace('.', ',')}${belirtmeEki(Math.round(((c * 100) % 1) * 10) || Math.round(c * 100))} geri aldı. Bu, yüzde 61,8 ya da 78,6 kuralına uyuyor.`,
+      [`${dipteABCD ? 'Dipte tamamlanan ABCD' : 'Tepede tamamlanan ABCD'}: C noktası, A ile B arasının yüzde ${(c * 100).toFixed(1).replace('.', ',')}${belirtmeEki(Math.round(((c * 100) % 1) * 10) || Math.round(c * 100))} geri aldı. Bu, yüzde 61,8 ya da 78,6 kuralına uyuyor.`,
        `D tamamlanma bölgesi: yüzde 127,2 için ${f2(h1)}, yüzde 161,8 için ${f2(h2)}. Fiyat bu bölgede.`,
        hp.length ? `Dönüş gelirse hedefler CD bacağının geri alımıdır: ${hp.join(', ')}.` : 'CD bacağının geri alım ölçüleri fiyata yüzde 1,5\'ten yakın kaldı.',
        `Zaman: A'dan B'ye ${abSure} mum, C'den D'ye ${cdSure} mum${yakin(abSure, cdSure, 25) ? '. AB eşittir CD zaman kuralı tutuyor.' : '.'}`],
